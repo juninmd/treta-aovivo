@@ -79,7 +79,8 @@ pub fn ensure(dir: &Path, spec: &ModelSpec, on_status: &mut dyn FnMut(String)) -
         .and_then(|r| r.error_for_status())
         .with_context(|| format!("download failed: {url}"))?;
     let bytes = resp.bytes()?;
-    let tmp = path.with_extension("part");
+    // Per process: an engine still stopping must not write into the next one's download.
+    let tmp = path.with_extension(format!("{}.part", std::process::id()));
     fs::write(&tmp, &bytes)?;
     let got = sha256_file(&tmp)?;
     if got != spec.sha256 {

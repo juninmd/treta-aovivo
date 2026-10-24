@@ -10,9 +10,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{ChildStdin, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::Ordering;
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 pub const ENGINE_FLAG: &str = "--engine";
 const STDERR_TAIL: usize = 2000;
@@ -37,6 +39,8 @@ pub enum Control {
 /// Parent-side handle; dropping it closes the child's stdin, which stops it.
 pub struct EngineProcess {
     stdin: ChildStdin,
+    child: Arc<Mutex<Child>>,
+    exited: Receiver<()>,
 }
 
 impl EngineProcess {
@@ -54,6 +58,9 @@ impl EngineProcess {
 
         let tail = Arc::new(Mutex::new(String::new()));
         let sink = tail.clone();
+        let child = Arc::new(Mutex::new(child));
+        let reaper = child.clone();
+        let (done, exited) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             for line in lossy_lines(BufReader::new(stderr)) {
                 let mut t = sink.lock().expect("stderr tail lock");
@@ -69,15 +76,31 @@ impl EngineProcess {
             .name("voice-engine".into())
             .spawn(move || {
                 let outcome = forward(BufReader::new(stdout), &mut emit);
-                let code = child.wait().ok().and_then(|s| s.code());
+                // stdout closed, so the child is exiting: the lock is only held for that short wait.
+                let code = reaper.lock().ok().and_then(|mut c| c.wait().ok()).and_then(|s| s.code());
                 if !outcome.ended {
                     let tail = tail.lock().map(|t| t.clone()).unwrap_or_default();
                     emit(json!({ "type": "error", "message": crash_message(code, &tail) }));
                     emit(json!({ "type": "ended", "t": outcome.last_t }));
                 }
+                let _ = done.send(());
             })
             .map_err(|e| e.to_string())?;
-        Ok(Self { stdin: pipe })
+        Ok(Self { stdin: pipe, child, exited })
+    }
+
+    /// Stops the engine and waits until it is gone, killing it after `grace`:
+    /// two engines loading models at once is the memory pressure the sidecar exists to avoid.
+    pub fn stop_and_wait(mut self, grace: Duration) {
+        self.send(&Control::Stop);
+        let Self { stdin, child, exited } = self;
+        drop(stdin);
+        if let Err(RecvTimeoutError::Timeout) = exited.recv_timeout(grace) {
+            if let Ok(mut c) = child.lock() {
+                let _ = c.kill();
+            }
+            let _ = exited.recv_timeout(Duration::from_secs(5));
+        }
     }
 
     /// False when the engine is already gone.
@@ -134,10 +157,19 @@ fn crash_message(code: Option<i32>, stderr_tail: &str) -> String {
     }
 }
 
+/// Models are downloaded into `models_dir`; a relative one lands in whatever the working directory is.
+fn check_request(req: &Request) -> Result<(), String> {
+    if !req.models_dir.is_absolute() {
+        return Err(format!("models folder must be an absolute path, got {:?}", req.models_dir));
+    }
+    Ok(())
+}
+
 /// Child side: runs one engine session and exits.
 pub fn serve() -> i32 {
     let mut first = String::new();
-    let req: Request = match std::io::stdin().read_line(&mut first).map_err(|e| e.to_string()).and_then(|_| serde_json::from_str(&first).map_err(|e| e.to_string())) {
+    let parsed = std::io::stdin().read_line(&mut first).map_err(|e| e.to_string()).and_then(|_| serde_json::from_str(&first).map_err(|e| e.to_string()));
+    let req: Request = match parsed.and_then(|r: Request| check_request(&r).map(|_| r)) {
         Ok(r) => r,
         Err(e) => {
             write_event(&EngineEvent::Error { message: format!("bad engine request: {e}") });
@@ -213,6 +245,14 @@ mod tests {
         let other = crash_message(Some(3), "first\nmodel file is corrupt\n\n");
         assert!(other.contains("0x3") && other.contains("model file is corrupt"), "{other}");
         assert!(crash_message(None, "").contains("sem detalhes"));
+    }
+
+    #[test]
+    fn the_models_folder_must_be_absolute() {
+        let req = |dir: &str| Request { source: SourceSpec::Mic, config: EngineConfig::default(), models_dir: dir.into() };
+        assert!(check_request(&req("")).is_err(), "empty would download into the working directory");
+        assert!(check_request(&req("models")).is_err());
+        assert!(check_request(&req(&std::env::temp_dir().to_string_lossy())).is_ok());
     }
 
     #[test]
