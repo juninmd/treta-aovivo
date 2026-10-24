@@ -57,8 +57,8 @@ pub struct EngineConfig {
 impl Default for EngineConfig {
     fn default() -> Self {
         Self {
-            voice_model: "wespeaker-resnet34".into(),
-            threshold: 0.5,
+            voice_model: "3dspeaker-campplus".into(),
+            threshold: 0.55,
             max_speakers: 4,
             vad_threshold: 0.5,
             min_silence: 0.35,
