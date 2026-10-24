@@ -12,6 +12,7 @@ use std::process::{Child, ChildStderr, Command, Stdio};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -36,15 +37,31 @@ pub struct RunningSource {
 impl RunningSource {
     /// Error text when a child process ended badly, for surfacing to the user.
     pub fn failure(&mut self) -> Option<String> {
-        let mut failed = false;
-        for c in &mut self.children {
-            if let Ok(Some(st)) = c.try_wait() {
-                failed |= !st.success();
-            }
-        }
+        let failed = exited_badly(&mut self.children, Duration::from_secs(2));
         let tail = self.stderr_tail.lock().ok()?.join("\n");
         (failed && !tail.is_empty()).then_some(tail)
     }
+}
+
+/// Called right after the audio pipe closed: a child that is still exiting gets a
+/// moment, or a rejected file would read as a clean end of stream.
+fn exited_badly(children: &mut [Child], within: Duration) -> bool {
+    let deadline = Instant::now() + within;
+    let mut failed = false;
+    for c in children {
+        loop {
+            match c.try_wait() {
+                Ok(Some(st)) => failed |= !st.success(),
+                Ok(None) if Instant::now() < deadline => {
+                    thread::sleep(Duration::from_millis(50));
+                    continue;
+                }
+                _ => {}
+            }
+            break;
+        }
+    }
+    failed
 }
 
 impl Drop for RunningSource {
@@ -159,12 +176,16 @@ fn open_url(url: &str, speed: f32) -> Result<RunningSource> {
     let mut cmd = ffmpeg_cmd();
     cmd.args(["-i", "pipe:0"]);
     ffmpeg_output(&mut cmd);
-    let mut ffmpeg = hidden(&mut cmd)
-        .stdin(Stdio::from(ytdlp.stdout.take().unwrap()))
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .context("ffmpeg not found on PATH")?;
+    let spawned = hidden(&mut cmd).stdin(Stdio::from(ytdlp.stdout.take().unwrap())).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn();
+    let mut ffmpeg = match spawned {
+        Ok(c) => c,
+        Err(e) => {
+            // A Child is not killed on drop; a live download would keep going.
+            let _ = ytdlp.kill();
+            let _ = ytdlp.wait();
+            return Err(e).context("ffmpeg not found on PATH");
+        }
+    };
     collect_stderr(ffmpeg.stderr.take().unwrap(), tail.clone());
     let (tx, rx) = sync_channel(256);
     pump_pcm(ffmpeg.stdout.take().unwrap(), tx, speed);
@@ -177,7 +198,8 @@ fn open_file(path: &str, speed: f32) -> Result<RunningSource> {
     }
     let tail = Arc::new(Mutex::new(Vec::new()));
     let mut cmd = ffmpeg_cmd();
-    cmd.arg("-i").arg(path);
+    // A playlist or concat file could otherwise make ffmpeg fetch URLs it names.
+    cmd.args(["-protocol_whitelist", "file,pipe", "-i"]).arg(path);
     ffmpeg_output(&mut cmd);
     let mut ffmpeg = hidden(&mut cmd).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().context("ffmpeg not found on PATH")?;
     collect_stderr(ffmpeg.stderr.take().unwrap(), tail.clone());
@@ -227,6 +249,16 @@ pub fn open(spec: &SourceSpec) -> Result<RunningSource> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_helper_failing_just_after_the_audio_ends_is_still_reported() {
+        // Exits with an error a moment after closing its output, like ffmpeg rejecting a file.
+        #[cfg(windows)]
+        let child = Command::new("cmd").args(["/C", "ping -n 2 127.0.0.1 >NUL & exit 3"]).spawn().unwrap();
+        #[cfg(not(windows))]
+        let child = Command::new("sh").args(["-c", "sleep 1; exit 3"]).spawn().unwrap();
+        assert!(exited_badly(&mut [child], Duration::from_secs(5)));
+    }
 
     #[test]
     fn rejects_non_http_links_and_argument_smuggling() {

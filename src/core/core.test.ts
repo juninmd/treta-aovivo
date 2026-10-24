@@ -17,6 +17,10 @@ describe("quotes", () => {
     expect(m.text).toBe("DESEMPREGO caiu para 5,4% em junho");
     expect(text.slice(m.start, m.end)).toBe(m.text);
   });
+  it("keeps the unit glued to a number at the end of a quote (a checked figure must read as said)", () => {
+    expect(locateQuote("O desemprego é o maior da região, 14%. E o candidato?", "O desemprego é o maior da região, 14%")!.text).toBe("O desemprego é o maior da região, 14%");
+    expect(locateQuote("A tarifa subiu 30% em dois anos.", "tarifa subiu 30")!.text).toBe("tarifa subiu 30%");
+  });
   it("rejects invented quotes and measures partial overlap", () => {
     expect(locateQuote("ele falou de saúde", "inflação de 15%")).toBeNull();
     expect(quoteOverlap("a inflação dos alimentos subiu muito", "inflação alimentos subiu 15%")).toBeGreaterThan(0.6);
@@ -216,7 +220,7 @@ describe("duckduckgo rate limit", () => {
 });
 
 describe("news search", () => {
-  const rss = `<rss><channel><item><title>Lula cobra explicações de Flávio sobre R$ 134 milhões - Poder360</title><link>https://news.google.com/rss/articles/abc</link><pubDate>Mon, 19 Oct 2026 00:19:19 GMT</pubDate><description>&lt;a href="x"&gt;y&lt;/a&gt;</description><source url="https://www.poder360.com.br">Poder360</source></item><item><title>sem link</title><link>javascript:alert(1)</link></item></channel></rss>`;
+  const rss = `<rss><channel><item><title>Lula cobra explicações de Flávio sobre R$ 134 milhões - Poder360</title><link>https://news.google.com/rss/articles/abc</link><pubDate>Mon, 19 Oct 2026 15:19:19 GMT</pubDate><description>&lt;a href="x"&gt;y&lt;/a&gt;</description><source url="https://www.poder360.com.br">Poder360</source></item><item><title>sem link</title><link>javascript:alert(1)</link></item></channel></rss>`;
 
   it("turns Google News items into dated headlines from named outlets", () => {
     expect(parseGoogleNewsRss(rss)).toEqual([

@@ -65,16 +65,16 @@ function hamming(a: string, b: string): number {
 }
 
 /**
- * Portrait most similar to the others (medoid by perceptual hash): cutaways
- * to the opponent or the audience are outliers, the speaker's own shot repeats.
- */
-/**
  * Below this many shots a voice gets no automatic photo: moderators talk over
  * cutaways to the candidates, and with one or two shots a cutaway can't be
  * outvoted. The shots stay available as suggestions in the speaker dialog.
  */
 export const MIN_AUTO_PORTRAITS = 3;
 
+/**
+ * Portrait most similar to the others (medoid by perceptual hash): cutaways
+ * to the opponent or the audience are outliers, the speaker's own shot repeats.
+ */
 export function bestPortrait(portraits: Portrait[]): Portrait | undefined {
   if (portraits.length < MIN_AUTO_PORTRAITS) return undefined;
   let best: Portrait | undefined;

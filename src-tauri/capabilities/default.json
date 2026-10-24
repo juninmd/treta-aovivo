@@ -7,7 +7,14 @@
   ],
   "permissions": [
     "core:default",
-    "opener:default",
+    "allow-start-engine",
+    "allow-stop-engine",
+    "allow-merge-speakers",
+    "allow-check-tools",
+    "allow-search-page",
+    "allow-save-debate",
+    "allow-secret-get",
+    "allow-secret-set",
     {
       "identifier": "opener:allow-open-url",
       "allow": [

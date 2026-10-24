@@ -21,7 +21,7 @@ export function decodeHtml(s: string): string {
     .replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
       if (e[0] === "#") {
         const code = e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-        return Number.isFinite(code) ? String.fromCodePoint(code) : m;
+        return code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m;
       }
       return ENTITIES[e.toLowerCase()] ?? m;
     })
@@ -42,10 +42,22 @@ function unwrapDdgLink(href: string): string | null {
   }
 }
 
+/** Absolute http(s) URL or null: the only links the app opens or shows a host for. */
+export function httpUrl(link: string | undefined): string | null {
+  try {
+    const u = new URL(link ?? "");
+    return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Parses html.duckduckgo.com results; ads and internal links are dropped. */
 export function parseDuckDuckGoHtml(html: string): SearchResult[] {
   const out: SearchResult[] = [];
   const blocks = html.split(/<div class="result results_links/).slice(1);
+  // A captcha or a new layout would otherwise read as "no sources" and cost the speaker a point.
+  if (!blocks.length && !/id="links"|class="results"|no-results/.test(html)) throw new Error("DuckDuckGo devolveu uma página que não é de resultados");
   for (const block of blocks) {
     if (/result--ad/.test(block.slice(0, 200))) continue;
     const a = block.match(/class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);
@@ -102,12 +114,16 @@ export function googleCustomSearch(apiKey: string, cx: string, fetchFn: FetchFn 
     async search(query, signal) {
       const u = new URL("https://www.googleapis.com/customsearch/v1");
       u.search = new URLSearchParams({ key: apiKey, cx, q: query, num: String(MAX_RESULTS), lr: "lang_pt", gl: "br" }).toString();
-      const res = await fetchFn(u.toString(), { signal });
+      // The key travels in the URL and network errors quote the URL; never let it reach the screen.
+      const res = await fetchFn(u.toString(), { signal }).catch((e: unknown) => {
+        throw new Error(`Google Custom Search falhou: ${String(e instanceof Error ? e.message : e).replaceAll(apiKey, "***")}`);
+      });
       if (!res.ok) throw new Error(`Google Custom Search respondeu ${res.status}`);
       const body = (await res.json()) as { items?: { title?: string; link?: string; snippet?: string }[] };
-      return (body.items ?? [])
-        .filter((i) => i.link)
-        .map((i) => ({ title: i.title ?? "", url: i.link!, snippet: (i.snippet ?? "").replace(/\s+/g, " ") }));
+      return (body.items ?? []).flatMap((i) => {
+        const url = httpUrl(i.link);
+        return url ? [{ title: i.title ?? "", url, snippet: (i.snippet ?? "").replace(/\s+/g, " ") }] : [];
+      });
     },
   };
 }
@@ -124,7 +140,10 @@ export function serper(apiKey: string, fetchFn: FetchFn = fetch): SearchProvider
       });
       if (!res.ok) throw new Error(`Serper respondeu ${res.status}`);
       const body = (await res.json()) as { organic?: { title?: string; link?: string; snippet?: string }[] };
-      return (body.organic ?? []).filter((i) => i.link).map((i) => ({ title: i.title ?? "", url: i.link!, snippet: i.snippet ?? "" }));
+      return (body.organic ?? []).flatMap((i) => {
+        const url = httpUrl(i.link);
+        return url ? [{ title: i.title ?? "", url, snippet: i.snippet ?? "" }] : [];
+      });
     },
   };
 }
@@ -142,7 +161,8 @@ export function parseGoogleNewsRss(xml: string): SearchResult[] {
     const date = new Date(tag("pubDate"));
     const headline = tag("title");
     const title = source && headline.endsWith(` - ${source}`) ? headline.slice(0, -(source.length + 3)) : headline;
-    out.push({ title, url, snippet: `Notícia${source ? ` de ${source}` : ""}${Number.isNaN(date.getTime()) ? "" : `, publicada em ${date.toISOString().slice(0, 10)}`}` });
+    // Local calendar date, the same convention as the debate's "today" the judge compares with.
+    out.push({ title, url, snippet: `Notícia${source ? ` de ${source}` : ""}${Number.isNaN(date.getTime()) ? "" : `, publicada em ${date.toLocaleDateString("sv-SE")}`}` });
     if (out.length >= NEWS_RESULTS) break;
   }
   return out;

@@ -29,7 +29,8 @@ pub enum VideoInput {
 impl VideoInput {
     pub fn for_source(spec: &SourceSpec) -> Result<Option<Self>> {
         match spec {
-            SourceSpec::File { path, .. } => Ok(Some(Self::File(path.clone()))),
+            SourceSpec::File { path, .. } if std::path::Path::new(path).is_file() => Ok(Some(Self::File(path.clone()))),
+            SourceSpec::File { path, .. } => anyhow::bail!("file not found: {path}"),
             SourceSpec::Url { url, .. } => validate_url(url).map(|_| Some(Self::Link(url.clone()))),
             SourceSpec::Mic | SourceSpec::System => Ok(None),
         }
@@ -54,7 +55,7 @@ impl VideoTap {
         cmd.args(["-hide_banner", "-loglevel", "error", "-nostdin"]).stdin(Stdio::null());
         match input {
             VideoInput::File(path) => {
-                cmd.arg("-i").arg(path);
+                cmd.args(["-protocol_whitelist", "file,pipe", "-i"]).arg(path);
             }
             VideoInput::Link(url) => {
                 let mut ytdlp = hidden(Command::new("yt-dlp").args(["-f", "bv*[height<=360][protocol=https]/bv*[height<=480]/b", "--no-playlist", "--quiet", "--no-warnings", "-o", "-", "--"]).arg(url))
@@ -68,11 +69,18 @@ impl VideoTap {
                 cmd.args(["-i", "pipe:0"]).stdin(Stdio::from(pipe));
             }
         }
-        let mut child = hidden(cmd.args(["-an", "-vf", &vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"]))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .context("ffmpeg not found on PATH")?;
+        let spawned = hidden(cmd.args(["-an", "-vf", &vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"])).stdout(Stdio::piped()).stderr(Stdio::null()).spawn();
+        let mut child = match spawned {
+            Ok(c) => c,
+            Err(e) => {
+                // yt-dlp would keep downloading: a Child is not killed on drop.
+                for c in &mut children {
+                    let _ = c.kill();
+                    let _ = c.wait();
+                }
+                return Err(e).context("ffmpeg not found on PATH");
+            }
+        };
         let mut stdout = child.stdout.take().context("ffmpeg stdout")?;
         let frames: FrameBuf = Arc::default();
         let done = Arc::new(AtomicBool::new(false));
@@ -143,6 +151,13 @@ impl Drop for VideoTap {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_existing_files_reach_ffmpeg_as_a_file_input() {
+        // ffmpeg would happily fetch a URL or read a playlist given as the "file" path.
+        let spec = SourceSpec::File { path: "http://169.254.169.254/latest/meta-data".into(), speed: None };
+        assert!(VideoInput::for_source(&spec).is_err());
+    }
 
     #[test]
     fn closest_frame_must_be_within_half_a_frame_interval() {

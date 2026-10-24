@@ -5,6 +5,8 @@ export const speakerColor = (id: number) => `var(--s${(id % 4) + 1})`;
 
 export const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
+export const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 const initials = (name: string) =>
   name
     .split(/\s+/)
@@ -31,7 +33,8 @@ export function playClips(clips: string[]) {
     if (!c) return;
     const a = new Audio(`data:audio/wav;base64,${c}`);
     a.onended = next;
-    void a.play();
+    // A refused clip (autoplay policy, bad data) must not stop the rest of the moment.
+    a.play().catch(next);
   };
   next();
 }

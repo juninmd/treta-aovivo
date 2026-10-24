@@ -53,8 +53,10 @@ export interface Utterance {
   closed: boolean;
   /** The engine heard two voices at once in this turn. */
   overlap?: boolean;
+  /** Seconds of speech in the turn (its segments, without the pauses between them). */
+  speech?: number;
   /** Why the speaker of this turn is doubtful; its claims and fallacies don't score. */
-  uncertain?: "overlap" | "self-address";
+  uncertain?: "overlap" | "self-address" | "short-voice";
   /** A person confirmed or corrected who said this; it always scores. */
   reviewed?: boolean;
 }

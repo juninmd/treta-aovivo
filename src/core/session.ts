@@ -47,8 +47,11 @@ export interface SessionState {
 const MAX_PORTRAITS = 8;
 /** Voices that barely talked (blips, applause) don't keep re-triggering name inference. */
 const MIN_NAMED_TALK_SECS = 20;
+/** Less speech than this on a voice is likely a fragment of another voice (a 3 s blip): its turns don't score yet. */
+const MIN_SCORED_TALK_SECS = 10;
 /** Error message; provider failures also carry the start of the response body ("Invalid JSON response" alone says nothing). */
 export function errText(e: unknown): string {
+  if (e instanceof Error && e.name === "TimeoutError") return "o provedor não respondeu a tempo";
   const msg = e instanceof Error ? e.message : String(e);
   const last = RetryError.isInstance(e) ? e.lastError : e;
   if (!APICallError.isInstance(last) || !last.responseBody) return msg;
@@ -117,7 +120,8 @@ export class DebateSession {
       case "started":
         return this.set({ status: "running", source: ev.source });
       case "activity": {
-        this.set({ t: ev.t, speaking: ev.speaking, level: ev.level });
+        // The UI shows whole seconds and the speaking wave; every audio chunk would re-render the whole transcript.
+        if (Math.floor(ev.t) !== Math.floor(this.state.t) || ev.speaking !== this.state.speaking) this.set({ t: ev.t, speaking: ev.speaking, level: ev.level });
         if (this.asrPending === 0) {
           const closed = this.turns.tick(ev.t);
           if (closed) this.onClosed(closed);
@@ -157,8 +161,10 @@ export class DebateSession {
 
   private onSegment(raw: SegmentEvent) {
     const seg = { ...raw, speaker: this.canonical(raw.speaker) };
+    const before = this.talkOf(seg.speaker);
     const speakers = this.ensureSpeaker(seg.speaker).map((s) => (s.id === seg.speaker ? { ...s, talkSeconds: s.talkSeconds + (seg.end - seg.start) } : s));
     this.set({ speakers, t: Math.max(this.state.t, seg.end) });
+    if (before < MIN_SCORED_TALK_SECS && this.talkOf(seg.speaker) >= MIN_SCORED_TALK_SECS) this.refreshAttribution();
     if (!seg.audio) return;
     const clip = seg.audio;
     this.asrPending++;
@@ -202,9 +208,15 @@ export class DebateSession {
     this.set({ utterances: i < 0 ? [...list, u] : list.map((x, j) => (j === i ? u : x)) });
   }
 
+  private talkOf(id: number): number {
+    return this.state.speakers.find((s) => s.id === id)?.talkSeconds ?? 0;
+  }
+
   private doubtOf(u: Utterance): Utterance["uncertain"] {
     if (u.reviewed) return undefined;
-    return u.overlap ? "overlap" : addressesSelf(u.text, this.nameOf(u.speaker)) ? "self-address" : undefined;
+    if (u.overlap) return "overlap";
+    if (addressesSelf(u.text, this.nameOf(u.speaker))) return "self-address";
+    return this.talkOf(u.speaker) < MIN_SCORED_TALK_SECS ? "short-voice" : undefined;
   }
 
   /** Self-address depends on names, which change during a debate: recheck closed turns. */
@@ -234,10 +246,11 @@ export class DebateSession {
       this.analysisQueue(async () => {
         const started = this.clock();
         try {
+          // Read when the task runs: a merge or review may have moved the turn while it waited.
           const a = await this.deps.analyze({
-            speakerName: this.nameOf(u.speaker),
+            speakerName: this.nameOf(this.currentSpeaker(u.id) ?? u.speaker),
             text: u.text,
-            context: prior.map((p) => ({ name: this.nameOf(p.speaker), text: p.text })),
+            context: prior.map((p) => ({ name: this.nameOf(this.currentSpeaker(p.id) ?? p.speaker), text: p.text })),
             today: this.deps.today,
           });
           this.timing("analyze", started);
@@ -284,7 +297,8 @@ export class DebateSession {
       let results = await this.deps.search(c.query);
       if (!results.length) results = await this.deps.search(c.quote);
       this.patchClaim(c.id, { status: "judging" });
-      const j = await this.deps.judge({ quote: c.quote, speakerName: this.nameOf(c.speaker), utterance, results, today: this.deps.today });
+      const speaker = this.state.claims.find((x) => x.id === c.id)?.speaker ?? c.speaker;
+      const j = await this.deps.judge({ quote: c.quote, speakerName: this.nameOf(speaker), utterance, results, today: this.deps.today });
       this.patchClaim(c.id, { status: "done", verdict: j.verdict, explanation: j.explanation, confidence: j.confidence, sources: j.sources });
       this.timing("factcheck", started);
     } catch (e) {
@@ -326,12 +340,11 @@ export class DebateSession {
     this.set({ speakers: this.state.speakers.map((s) => (s.id === id ? { ...s, photo } : s)) });
   }
 
-  /** Folds voice `from` into `into` everywhere (the engine is told separately). */
   /** Human review of who said a closed turn: moves it (and its checks) and makes it count. */
   reassignTurn(utteranceId: string, speaker: number) {
     const u = this.state.utterances.find((x) => x.id === utteranceId);
     if (!u?.closed || !this.state.speakers.some((s) => s.id === speaker)) return;
-    const secs = u.end - u.start;
+    const secs = u.speech ?? u.end - u.start;
     const move = <T extends { utteranceId: string; speaker: number; uncertain?: boolean }>(x: T): T => (x.utteranceId === utteranceId ? { ...x, speaker, uncertain: false } : x);
     this.set({
       speakers: this.state.speakers.map((s) =>
@@ -343,6 +356,7 @@ export class DebateSession {
     });
   }
 
+  /** Folds voice `from` into `into` everywhere (the engine is told separately). */
   mergeSpeakers(from: number, into: number) {
     const a = this.state.speakers.find((s) => s.id === from);
     const b = this.state.speakers.find((s) => s.id === into);

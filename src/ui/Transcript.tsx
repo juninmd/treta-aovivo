@@ -25,7 +25,7 @@ function highlight(u: Utterance, claims: Claim[], fallacies: Fallacy[], onClaim:
   }
   for (const f of fallacies) {
     const m = locateQuote(u.text, f.quote);
-    if (m) marks.push({ ...m, node: (t) => <span key={f.id} className="fallacy" title={`${f.kind}: ${f.explanation}`}>{t}</span> });
+    if (m) marks.push({ ...m, node: (t) => <span key={f.id} className="fallacy" tabIndex={0} title={`${f.kind}: ${f.explanation}`} aria-label={`${t} (${f.kind}: ${f.explanation})`}>{t}</span> });
   }
   marks.sort((a, b) => a.start - b.start);
   const out: ReactNode[] = [];
@@ -51,13 +51,19 @@ interface Props {
   onReassign: (utteranceId: string, speaker: number) => void;
 }
 
-const UNCERTAIN = { overlap: "Duas vozes ao mesmo tempo", "self-address": "A fala chama o próprio falante pelo nome" } as const;
+const UNCERTAIN = {
+  overlap: "Duas vozes ao mesmo tempo",
+  "self-address": "A fala chama o próprio falante pelo nome",
+  "short-voice": "Voz que quase não falou, talvez parte de outra",
+} as const;
 
 export function Transcript({ speakers, utterances, claims, fallacies, speaking, running, onClaim, onReassign }: Props) {
   const [reviewing, setReviewing] = useState<string | null>(null);
-  const [filter, setFilter] = useState<number | "all">("all");
+  const [picked, setPicked] = useState<number | "all">("all");
   const end = useRef<HTMLDivElement>(null);
   const byId = new Map(speakers.map((s) => [s.id, s]));
+  // A voice merged away or a new debate leaves no such speaker: show everyone instead of an empty feed.
+  const filter = picked !== "all" && byId.has(picked) ? picked : "all";
   const shown = utterances.filter((u) => filter === "all" || u.speaker === filter);
 
   useEffect(() => {
@@ -71,9 +77,9 @@ export function Transcript({ speakers, utterances, claims, fallacies, speaking, 
         <small>sublinhado = afirmação checável · clique para ver a checagem</small>
       </div>
       <div className="filters" role="group" aria-label="Filtrar por falante">
-        <button type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>Todos</button>
+        <button type="button" aria-pressed={filter === "all"} onClick={() => setPicked("all")}>Todos</button>
         {speakers.map((s) => (
-          <button type="button" key={s.id} aria-pressed={filter === s.id} onClick={() => setFilter(s.id)}>{s.name}</button>
+          <button type="button" key={s.id} aria-pressed={filter === s.id} onClick={() => setPicked(s.id)}>{s.name}</button>
         ))}
       </div>
       <div className="feed" aria-live="polite">
@@ -123,7 +129,7 @@ export function Transcript({ speakers, utterances, claims, fallacies, speaking, 
                 )}
                 {fallacies.some((f) => f.utteranceId === u.id) && (
                   <div className="tags">
-                    {fallacies.filter((f) => f.utteranceId === u.id).map((f) => <span key={f.id} className="tag f" title={f.explanation}>{f.kind}</span>)}
+                    {fallacies.filter((f) => f.utteranceId === u.id).map((f) => <span key={f.id} className="tag f" tabIndex={0} title={f.explanation} aria-label={`${f.kind}: ${f.explanation}`}>{f.kind}</span>)}
                   </div>
                 )}
               </div>

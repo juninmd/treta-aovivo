@@ -11,6 +11,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p scripts",
     "homologate": "tsx scripts/homologate.ts",
+    "screenshots": "tsx scripts/screenshots/capture.ts",
     "whisper:local": "uv run tools/whisper-server/server.py"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
+    "playwright-core": "1.64.0",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "vite": "^8.0.16",

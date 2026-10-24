@@ -20,6 +20,8 @@ export function SpeakerDialog({ speaker, others, onClose, onSave, onMerge }: Pro
   const [mergeInto, setMergeInto] = useState("");
   const [warn, setWarn] = useState("");
 
+  // Reset only when the dialog opens for another voice: the speaker object changes whenever that voice talks.
+  const openFor = speaker?.id;
   useEffect(() => {
     if (speaker) {
       setName(speaker.name);
@@ -28,7 +30,7 @@ export function SpeakerDialog({ speaker, others, onClose, onSave, onMerge }: Pro
       setWarn("");
       ref.current?.showModal();
     } else ref.current?.close();
-  }, [speaker]);
+  }, [openFor]);
 
   if (!speaker) return <dialog ref={ref} />;
   const preview: Speaker = { ...speaker, name: name || speaker.name, photo };

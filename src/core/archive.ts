@@ -7,6 +7,9 @@ export interface DebateMeta {
   startedAt: string;
 }
 
+/** A session that never heard a voice (failed start, double click) is not a debate worth a row. */
+export const worthArchiving = (st: SessionState) => st.speakers.length > 0;
+
 /** Everything needed to review a debate later (no audio): what the SQLite archive stores. */
 export function toSnapshot(meta: DebateMeta, st: SessionState, now = new Date()) {
   return {

@@ -134,9 +134,11 @@ pub fn run(spec: SourceSpec, cfg: EngineConfig, models_dir: PathBuf, session: &S
     // Shared by the segment drain (asks for grabs) and the result loop (counts portraits found).
     let planner = std::cell::RefCell::new(faces::FacePlanner::default());
     let mut src = source::open(&spec)?;
-    let resampler = (src.sample_rate != PROCESS_RATE)
-        .then(|| LinearResampler::create(src.sample_rate as i32, PROCESS_RATE as i32))
-        .flatten();
+    // Without it, 48 kHz audio would run the 16 kHz clock 3x fast and mistime every turn.
+    let resampler = match src.sample_rate {
+        PROCESS_RATE => None,
+        rate => Some(LinearResampler::create(rate as i32, PROCESS_RATE as i32).ok_or_else(|| anyhow!("cannot resample {rate} Hz to {PROCESS_RATE} Hz"))?),
+    };
     emit(EngineEvent::Started { source: src.label.clone() });
 
     let mut consumed: u64 = 0;
@@ -225,7 +227,10 @@ pub fn run(spec: SourceSpec, cfg: EngineConfig, models_dir: PathBuf, session: &S
             portraits::emit_face(msg, &planner, &session.clusters, emit);
         }
     }
-    if let Some(err) = src.failure() {
+    // A stop kills the helpers on purpose; only an audio stream that ended by itself may hide a failure.
+    if !session.stop.load(Ordering::Relaxed)
+        && let Some(err) = src.failure()
+    {
         emit(EngineEvent::Error { message: err });
     }
     if std::env::var_os("TRETA_PROFILE").is_some() {

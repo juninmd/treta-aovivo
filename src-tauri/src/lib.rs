@@ -11,11 +11,16 @@ use serde::Serialize;
 use sidecar::{Control, EngineProcess, Request};
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::Duration;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 
 #[derive(Default)]
-struct EngineState(Mutex<Option<EngineProcess>>);
+struct EngineState {
+    current: Mutex<Option<EngineProcess>>,
+    /// Held for a whole start: two quick clicks would otherwise both find no engine and spawn two.
+    starting: tauri::async_runtime::Mutex<()>,
+}
 
 fn models_dir(app: &AppHandle) -> Result<PathBuf, String> {
     if let Some(dir) = std::env::var_os("TRETA_MODELS_DIR") {
@@ -24,32 +29,36 @@ fn models_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app.path().app_data_dir().map(|d| d.join("models")).map_err(|e| e.to_string())
 }
 
-fn stop_current(state: &EngineState) {
-    if let Some(mut p) = state.0.lock().expect("engine lock").take() {
-        p.send(&Control::Stop);
-    }
-}
+/// How long a stopping engine may take (face grabs, a model download) before it is killed.
+const STOP_GRACE: Duration = Duration::from_secs(15);
 
 #[tauri::command]
-fn start_engine(app: AppHandle, state: State<EngineState>, source: SourceSpec, config: EngineConfig, on_event: Channel<serde_json::Value>) -> Result<(), String> {
-    stop_current(&state);
+async fn start_engine(app: AppHandle, state: State<'_, EngineState>, source: SourceSpec, config: EngineConfig, on_event: Channel<serde_json::Value>) -> Result<(), String> {
+    let _starting = state.starting.lock().await;
+    let previous = state.current.lock().expect("engine lock").take();
+    if let Some(p) = previous {
+        tauri::async_runtime::spawn_blocking(move || p.stop_and_wait(STOP_GRACE)).await.map_err(|e| e.to_string())?;
+    }
     let req = Request { source, config, models_dir: models_dir(&app)? };
     let process = EngineProcess::start(&req, move |ev| {
         let _ = on_event.send(ev);
     })?;
-    *state.0.lock().expect("engine lock") = Some(process);
+    *state.current.lock().expect("engine lock") = Some(process);
     Ok(())
 }
 
+/// Asks the engine to stop; the handle stays so the next start waits for it to be gone.
 #[tauri::command]
 fn stop_engine(state: State<EngineState>) {
-    stop_current(&state);
+    if let Some(p) = state.current.lock().expect("engine lock").as_mut() {
+        p.send(&Control::Stop);
+    }
 }
 
 /// True when the engine received the request (it ignores unknown or equal ids).
 #[tauri::command]
 fn merge_speakers(state: State<EngineState>, from: usize, into: usize) -> bool {
-    state.0.lock().expect("engine lock").as_mut().is_some_and(|p| p.send(&Control::Merge { from, into }))
+    state.current.lock().expect("engine lock").as_mut().is_some_and(|p| p.send(&Control::Merge { from, into }))
 }
 
 /// Saves the whole debate; returns the archive path so the UI can show where it lives.
@@ -74,9 +83,11 @@ struct Tools {
     ffmpeg: bool,
 }
 
+/// Spawns both tools, which can take seconds on Windows: never on the UI thread.
 #[tauri::command]
-fn check_tools() -> Tools {
-    Tools { yt_dlp: engine::source::tool_available("yt-dlp"), ffmpeg: engine::source::tool_available("ffmpeg") }
+async fn check_tools() -> Tools {
+    let probe = || Tools { yt_dlp: engine::source::tool_available("yt-dlp"), ffmpeg: engine::source::tool_available("ffmpeg") };
+    tauri::async_runtime::spawn_blocking(probe).await.unwrap_or(Tools { yt_dlp: false, ffmpeg: false })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -55,6 +55,8 @@ ${sanitize(input.text)}
 </fala>`;
 }
 
+const MIN_FALLACY_WORDS = 4;
+
 /** Keeps only items grounded in the transcript; fallacies need an exact quote. */
 export function groundAnalysis(text: string, raw: Analysis): Analysis {
   const claims = raw.claims
@@ -64,7 +66,8 @@ export function groundAnalysis(text: string, raw: Analysis): Analysis {
     .slice(0, 3);
   const fallacies = raw.fallacies
     .map((f) => ({ ...f, quote: locateQuote(text, f.quote)?.text ?? "" }))
-    .filter((f) => f.quote && f.explanation.trim())
+    // A two-word fragment ("Só você") needs invented context to read as an attack.
+    .filter((f) => f.quote.split(/\s+/).filter(Boolean).length >= MIN_FALLACY_WORDS && f.explanation.trim())
     .slice(0, 2);
   return { claims, fallacies };
 }
