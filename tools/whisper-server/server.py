@@ -52,6 +52,8 @@ import numpy as np  # noqa: E402
 from faster_whisper import WhisperModel  # noqa: E402
 
 MAX_BODY = 50 * 1024 * 1024
+# The app's webview origins (Tauri on Windows/macOS/Linux, and the Vite dev server).
+APP_ORIGINS = {"tauri://localhost", "http://tauri.localhost", "https://tauri.localhost", "http://localhost:1420"}
 
 
 class UnsupportedAudio(ValueError):
@@ -126,8 +128,19 @@ class Transcriber:
         }
 
 
-def make_handler(t: Transcriber):
+def make_handler(t: Transcriber, port: int):
+    hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+
     class Handler(BaseHTTPRequestHandler):
+        def _trusted(self) -> bool:
+            """Any web page can POST a form to 127.0.0.1: only the app (or a non-browser client) is served,
+            and a rebound DNS name never reaches the model."""
+            origin = self.headers.get("Origin")
+            if self.headers.get("Host") in hosts and (origin is None or origin in APP_ORIGINS):
+                return True
+            self._error(403, "forbidden origin")
+            return False
+
         def log_message(self, fmt: str, *args) -> None:  # quiet by default
             pass
 
@@ -143,6 +156,8 @@ def make_handler(t: Transcriber):
             self._json(code, {"error": {"message": message, "type": "invalid_request_error"}})
 
         def do_GET(self) -> None:
+            if not self._trusted():
+                return
             if self.path.rstrip("/") in ("/v1/models", "/models"):
                 self._json(200, {"object": "list", "data": [{"id": t.name, "object": "model", "owned_by": "local"}]})
             elif self.path == "/health":
@@ -151,9 +166,14 @@ def make_handler(t: Transcriber):
                 self._error(404, "not found")
 
         def do_POST(self) -> None:
+            if not self._trusted():
+                return
             if self.path.rstrip("/") not in ("/v1/audio/transcriptions", "/audio/transcriptions"):
                 return self._error(404, "not found")
-            length = int(self.headers.get("Content-Length") or 0)
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return self._error(400, "invalid Content-Length")
             if length <= 0 or length > MAX_BODY:
                 return self._error(413, f"body must be 1..{MAX_BODY} bytes")
             ctype = self.headers.get("Content-Type", "")
@@ -194,7 +214,7 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8765)
     args = ap.parse_args()
     t = Transcriber(args.model, args.device, args.compute_type)
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(t))
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(t, args.port))
     print(f"whisper-server ready on http://127.0.0.1:{args.port}/v1 (model {args.model}, {args.device})", flush=True)
     server.serve_forever()
 

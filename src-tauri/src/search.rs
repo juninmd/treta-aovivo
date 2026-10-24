@@ -31,13 +31,20 @@ pub async fn search_page(url: String) -> Result<Page, String> {
         .user_agent(UA)
         .build()
         .map_err(|e| e.to_string())?;
-    let res = client.get(url).header("Accept-Language", "pt-BR,pt;q=0.9").send().await.map_err(|e| e.to_string())?;
+    let mut res = client.get(url).header("Accept-Language", "pt-BR,pt;q=0.9").send().await.map_err(|e| e.to_string())?;
     let status = res.status().as_u16();
-    let bytes = res.bytes().await.map_err(|e| e.to_string())?;
-    if bytes.len() > MAX_BODY {
+    // Stop at the cap while reading instead of buffering an oversized body first.
+    if res.content_length().is_some_and(|n| n > MAX_BODY as u64) {
         return Err("search page too large".into());
     }
-    Ok(Page { status, body: String::from_utf8_lossy(&bytes).into_owned() })
+    let mut body = Vec::new();
+    while let Some(chunk) = res.chunk().await.map_err(|e| e.to_string())? {
+        if body.len() + chunk.len() > MAX_BODY {
+            return Err("search page too large".into());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(Page { status, body: String::from_utf8_lossy(&body).into_owned() })
 }
 
 #[cfg(test)]
