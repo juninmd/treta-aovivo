@@ -1,6 +1,6 @@
 import { scoreboard, type BoardRow } from "../core/score";
 import type { Claim, Fallacy, Speaker } from "../core/types";
-import { Avatar, fmt, speakerColor } from "./common";
+import { Avatar, count, fmt, speakerColor } from "./common";
 
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 
@@ -24,7 +24,7 @@ function Duel({ a, b, byId }: { a: BoardRow; b: BoardRow; byId: Map<number, Spea
       <strong>{byId.get(r.speaker)?.name}</strong>
       {lead === r.speaker && <span className="winning" key={`win-${lead}`}>vencendo · +{margin}</span>}
       <b className={r.points < 0 ? "neg" : r.points > 0 ? "pos" : ""}>{signed(r.points)}</b>
-      <small>{r.lies} mentiras · {r.adHominem} ad hominem · {r.truths} acertos</small>
+      <small>{count(r.lies, "mentira", "mentiras")} · {r.adHominem} ad hominem · {count(r.truths, "acerto", "acertos")}</small>
     </div>
   );
   return (
@@ -65,7 +65,7 @@ export function Board({ speakers, claims, fallacies, onEdit }: { speakers: Speak
                   <div className="counts">
                     <div className="lie"><b>{r.lies}</b>mentiras</div>
                     <div className="mis"><b>{r.misleading}</b>enganosas</div>
-                    <div className="ok"><b>{r.truths}</b>verdadeiras</div>
+                    <div className="ok"><b>{r.truths}</b>acertos</div>
                     <div><b>{r.adHominem}</b>ad hominem</div>
                     <div><b>{r.otherFallacies}</b>outras falácias</div>
                   </div>

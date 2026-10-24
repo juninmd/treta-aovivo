@@ -1,6 +1,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { httpUrl } from "../core/search";
 import type { Claim, Speaker } from "../core/types";
-import { Avatar, fmt, speakerColor } from "./common";
+import { Avatar, count, fmt, speakerColor } from "./common";
 
 const STAMP: Record<Claim["status"], string> = { searching: "buscando…", judging: "julgando…", done: "", error: "falhou" };
 
@@ -11,7 +12,7 @@ export function Checks({ claims, speakers, focus }: { claims: Claim[]; speakers:
     <section aria-labelledby="h-checks">
       <div className="col-title">
         <h2 id="h-checks">Checagens</h2>
-        <small>{done} concluídas · {claims.length - done} em andamento</small>
+        <small>{count(done, "concluída", "concluídas")} · {claims.length - done} em andamento</small>
       </div>
       <div className="checks">
         {!claims.length && <p className="empty">Números, valores e dados citados aparecem aqui com o veredicto e as fontes.</p>}
@@ -31,12 +32,16 @@ export function Checks({ claims, speakers, focus }: { claims: Claim[]; speakers:
               {c.error && <p className="why err">{c.error}</p>}
               {!!c.sources?.length && (
                 <ul className="src">
-                  {c.sources.map((s) => (
-                    <li key={s.url}>
-                      <button type="button" className="link" onClick={() => void openUrl(s.url)}>{s.title || s.url}</button>
-                      <span> — {new URL(s.url).hostname}</span>
-                    </li>
-                  ))}
+                  {c.sources.map((s) => {
+                    // Sources come from the web: only http(s) links open, and a malformed one must not break the page.
+                    const url = httpUrl(s.url);
+                    return (
+                      <li key={s.url}>
+                        <button type="button" className="link" disabled={!url} onClick={() => url && void openUrl(url)}>{s.title || s.url}</button>
+                        {url && <span> — {new URL(url).hostname}</span>}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
               {c.confidence != null && <div className="conf">confiança {Math.round(c.confidence * 100)}%</div>}

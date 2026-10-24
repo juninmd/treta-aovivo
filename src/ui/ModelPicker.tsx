@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { defaultReasoning, listModels, PRESETS, REASONING, type Endpoint, type PresetId, type Reasoning } from "../core/providers";
 import { httpFetch } from "../platform/tauri";
+import { count } from "./common";
 
 interface Props {
   legend: string;
@@ -26,7 +27,7 @@ export function EndpointFields({ legend, value, presets, onChange, filter = () =
     try {
       const list = (await listModels(ep, httpFetch)).filter(filter);
       setModels(list);
-      setStatus(list.length ? `${list.length} modelos em ${ep.baseURL}/models` : "O endpoint não listou modelos; digite o nome.");
+      setStatus(list.length ? `${count(list.length, "modelo", "modelos")} em ${ep.baseURL}/models` : "O endpoint não listou modelos; digite o nome.");
     } catch (e) {
       setModels([]);
       setStatus(`Não consegui listar: ${e instanceof Error ? e.message : String(e)}`);
