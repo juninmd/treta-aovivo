@@ -17,8 +17,9 @@ export interface NamedVoice {
  * talk most), so they swap when that contradicts the transcript less. Then a
  * guess is dropped when its voice is the one calling that name the most.
  */
-export function reconcileNames<T extends NamedVoice>(guesses: T[], turns: { speaker: number; text: string; start: number; end: number }[]): T[] {
-  const calls = (speaker: number, name: string) => turns.filter((t) => t.speaker === speaker && addressesSelf(t.text, name)).length;
+export function reconcileNames<T extends NamedVoice>(guesses: T[], turns: { speaker: number; text: string; start: number; end: number; overlap?: boolean }[]): T[] {
+  // Crosstalk turns hold two voices' words, so they say nothing about who calls whom.
+  const calls = (speaker: number, name: string) => turns.filter((t) => t.speaker === speaker && !t.overlap && addressesSelf(t.text, name)).length;
   const talk = (speaker: number) => turns.reduce((sum, t) => sum + (t.speaker === speaker ? t.end - t.start : 0), 0);
   const voices = [...new Set(turns.map((t) => t.speaker))];
   const out = guesses.map((g) => ({ ...g }));

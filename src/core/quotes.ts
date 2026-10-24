@@ -38,7 +38,9 @@ export function locateQuote(text: string, quote: string): QuoteMatch | null {
   const at = t.norm.indexOf(q);
   if (at < 0) return null;
   const start = t.map[at];
-  const end = t.map[at + q.length - 1] + 1;
+  let end = t.map[at + q.length - 1] + 1;
+  // Folding drops symbols, so "14%" would come back as "14": keep a unit glued to a final number.
+  if (/\d/.test(text[end - 1]) && /[%‰°ºª]/.test(text[end] ?? "")) end++;
   return { start, end, text: text.slice(start, end) };
 }
 

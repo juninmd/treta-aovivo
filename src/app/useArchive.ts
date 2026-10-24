@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { toSnapshot, type DebateMeta } from "../core/archive";
+import { toSnapshot, worthArchiving, type DebateMeta } from "../core/archive";
 import type { DebateSession } from "../core/session";
 import { saveDebate } from "../platform/tauri";
 
@@ -20,6 +20,7 @@ export function useArchive(session: DebateSession | null, source: string) {
     let queue: Promise<void> = Promise.resolve();
     const flush = () => {
       timer = undefined;
+      if (!worthArchiving(session.getState())) return;
       queue = queue.then(() =>
         saveDebate(toSnapshot(meta, session.getState())).then(
           (path) => { setSaved({ at: new Date(), path }); setError(null); },

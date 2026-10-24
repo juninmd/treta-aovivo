@@ -153,7 +153,7 @@ describe("attribution after naming", () => {
       },
       { nameAfterTurns: 0 },
     );
-    await play(s, [seg(1, 0, 0, 5, "a"), { type: "ended", t: 6 }]);
+    await play(s, [seg(1, 0, 0, 12, "a"), { type: "ended", t: 13 }]);
     expect(s.getState().claims[0].uncertain).toBeFalsy();
     s.renameSpeaker(0, "Lula");
     const st = s.getState();

@@ -1,6 +1,8 @@
 import type { Moment } from "../src/core/highlights";
 import type { BoardRow } from "../src/core/score";
-import type { Claim, Fallacy } from "../src/core/types";
+import type { Claim, Fallacy, Utterance } from "../src/core/types";
+
+const DOUBT: Record<NonNullable<Utterance["uncertain"]>, string> = { overlap: "vozes sobrepostas", "self-address": "chama o próprio nome", "short-voice": "voz curta" };
 
 export interface Latency {
   segment: number;
@@ -16,7 +18,7 @@ interface ReportInput {
   portraits: Record<number, string>;
   summary: { resumo: string; momentoMaisQuente: string };
   moments: Moment[];
-  utterances: { id: string; speaker: number; start: number; end: number; text: string; uncertain?: "overlap" | "self-address" }[];
+  utterances: { id: string; speaker: number; start: number; end: number; text: string; uncertain?: Utterance["uncertain"] }[];
   claims: Claim[];
   fallacies: Fallacy[];
   errors: string[];
@@ -51,7 +53,7 @@ export function renderReport(r: ReportInput): string {
   out.push("", `## Falácias (${r.fallacies.length})`, "");
   for (const f of r.fallacies) out.push(`- ${ts(f.at)} **${cell(name(f.speaker))}**${f.uncertain ? " _(atribuição incerta)_" : ""} · ${f.kind}: “${f.quote}” — ${f.explanation}`);
   out.push("", `## Transcrição`, "");
-  for (const u of r.utterances) out.push(`**${ts(u.start)} ${cell(name(u.speaker))}${u.uncertain ? ` ⚠ ${u.uncertain === "overlap" ? "vozes sobrepostas" : "chama o próprio nome"}` : ""}:** ${u.text}`, "");
+  for (const u of r.utterances) out.push(`**${ts(u.start)} ${cell(name(u.speaker))}${u.uncertain ? ` ⚠ ${DOUBT[u.uncertain]}` : ""}:** ${u.text}`, "");
   if (r.errors.length) out.push(`## Erros (${r.errors.length})`, "", ...r.errors.map((e) => `- ${e}`));
   if (r.messages.length) out.push("", `## Mensagens do motor`, "", ...r.messages.map((m) => `- ${m}`));
   return out.join("\n") + "\n";

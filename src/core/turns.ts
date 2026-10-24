@@ -42,6 +42,7 @@ export class TurnBuilder {
       this.open = {
         ...o,
         end: Math.max(o.end, seg.end),
+        speech: (o.speech ?? 0) + (seg.end - seg.start),
         text: `${o.text} ${seg.text.trim()}`,
         segmentIds: [...o.segmentIds, seg.id],
         clips: seg.clip ? [...o.clips, seg.clip] : o.clips,
@@ -55,6 +56,7 @@ export class TurnBuilder {
       speaker: seg.speaker,
       start: seg.start,
       end: seg.end,
+      speech: seg.end - seg.start,
       text: seg.text.trim(),
       segmentIds: [seg.id],
       clips: seg.clip ? [seg.clip] : [],
