@@ -40,6 +40,8 @@ async function dialogShot(page: Page, open: () => Promise<void>, file: string, r
   await open();
   const dialog = page.locator("dialog[open]");
   await dialog.waitFor();
+  // The dialog fades in; shoot it once the transition is over, not mid-way.
+  await dialog.evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
   if (ready) await ready(dialog).first().waitFor({ state: "attached", timeout: 30_000 });
   await dialog.screenshot({ path: `${SHOTS}/${file}` });
   await page.keyboard.press("Escape");
