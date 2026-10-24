@@ -65,6 +65,8 @@ export interface SearchResult {
   title: string;
   url: string;
   snippet: string;
+  /** Newspaper behind a news item (its URL is a Google News redirect, so the host says nothing). */
+  outlet?: string;
 }
 
 export interface Claim {
@@ -74,6 +76,8 @@ export interface Claim {
   at: number;
   quote: string;
   query: string;
+  /** Search aimed at the primary or official source, worded without the claimed figure. */
+  counterQuery?: string;
   /** Attribution doubtful (crosstalk); shown but not scored. */
   uncertain?: boolean;
   status: "searching" | "judging" | "done" | "error";

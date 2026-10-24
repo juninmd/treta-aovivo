@@ -3,6 +3,7 @@ import type { Analysis, AnalyzeInput } from "./analyze";
 import type { Judgement, JudgeInput } from "./factcheck";
 import { addressesSelf, reconcileNames } from "./attribution";
 import { createLimiter } from "./limiter";
+import { diversify } from "./search";
 import { defaultName, type NameGuess } from "./names";
 import { DEFAULT_TURN_POLICY, TurnBuilder, type TurnPolicy } from "./turns";
 import type { Claim, EngineEvent, Fallacy, Portrait, SearchResult, SegmentEvent, Speaker, Timing, Utterance } from "./types";
@@ -291,14 +292,25 @@ export class DebateSession {
     this.set({ claims: this.state.claims.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
   }
 
+  /**
+   * Evidence from the claim's own search and from a second one aimed at the primary source, so
+   * that pages repeating the claim don't decide alone. One of them failing still leaves evidence.
+   */
+  private async gather(c: Claim): Promise<SearchResult[]> {
+    const queries = [c.query, c.counterQuery?.trim()].filter((q, i, all): q is string => !!q && all.indexOf(q) === i);
+    const settled = await Promise.allSettled(queries.map((q) => this.deps.search(q)));
+    const ok = settled.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+    if (!ok.length) throw (settled[0] as PromiseRejectedResult).reason;
+    return diversify(ok);
+  }
+
   private async check(c: Claim, utterance: string) {
     const started = this.clock();
     try {
-      let results = await this.deps.search(c.query);
+      let results = await this.gather(c);
       if (!results.length) results = await this.deps.search(c.quote);
       this.patchClaim(c.id, { status: "judging" });
-      const speaker = this.state.claims.find((x) => x.id === c.id)?.speaker ?? c.speaker;
-      const j = await this.deps.judge({ quote: c.quote, speakerName: this.nameOf(speaker), utterance, results, today: this.deps.today });
+      const j = await this.deps.judge({ quote: c.quote, utterance, results, today: this.deps.today });
       this.patchClaim(c.id, { status: "done", verdict: j.verdict, explanation: j.explanation, confidence: j.confidence, sources: j.sources });
       this.timing("factcheck", started);
     } catch (e) {

@@ -12,6 +12,9 @@ export type SearchSettings =
   | { provider: "duckduckgo" };
 
 const MAX_RESULTS = 6;
+/** One outlet or site can't stand for the whole evidence: copies of a story are one voice. */
+const MAX_PER_SOURCE = 2;
+const MAX_EVIDENCE = 12;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36";
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
@@ -113,7 +116,7 @@ export function googleCustomSearch(apiKey: string, cx: string, fetchFn: FetchFn 
     name: "Google",
     async search(query, signal) {
       const u = new URL("https://www.googleapis.com/customsearch/v1");
-      u.search = new URLSearchParams({ key: apiKey, cx, q: query, num: String(MAX_RESULTS), lr: "lang_pt", gl: "br" }).toString();
+      u.search = new URLSearchParams({ key: apiKey, cx, q: query, num: String(MAX_RESULTS), gl: "br", hl: "pt-BR" }).toString();
       // The key travels in the URL and network errors quote the URL; never let it reach the screen.
       const res = await fetchFn(u.toString(), { signal }).catch((e: unknown) => {
         throw new Error(`Google Custom Search falhou: ${String(e instanceof Error ? e.message : e).replaceAll(apiKey, "***")}`);
@@ -162,7 +165,7 @@ export function parseGoogleNewsRss(xml: string): SearchResult[] {
     const headline = tag("title");
     const title = source && headline.endsWith(` - ${source}`) ? headline.slice(0, -(source.length + 3)) : headline;
     // Local calendar date, the same convention as the debate's "today" the judge compares with.
-    out.push({ title, url, snippet: `Notícia${source ? ` de ${source}` : ""}${Number.isNaN(date.getTime()) ? "" : `, publicada em ${date.toLocaleDateString("sv-SE")}`}` });
+    out.push({ title, url, outlet: source || undefined, snippet: `Notícia${source ? ` de ${source}` : ""}${Number.isNaN(date.getTime()) ? "" : `, publicada em ${date.toLocaleDateString("sv-SE")}`}` });
     if (out.length >= NEWS_RESULTS) break;
   }
   return out;
@@ -180,17 +183,79 @@ export function googleNews(fetchFn: FetchFn = fetch): SearchProvider {
   };
 }
 
-/** News first, then the web; either one failing still leaves evidence to judge with. */
+const OFFICIAL_HOST = /(^|\.)(gov\.br|jus\.br|leg\.br|mp\.br|def\.br|mil\.br|gov|int|imf\.org|worldbank\.org|oecd\.org|un\.org|europa\.eu)$/;
+
+const hostOf = (url: string): string => {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+};
+
+/** Kind of evidence, from the host alone: government, courts, statistics bodies and international agencies come first. */
+export function sourceKind(r: SearchResult): "oficial" | "notícia" | "web" {
+  if (r.outlet) return "notícia";
+  return OFFICIAL_HOST.test(hostOf(r.url)) ? "oficial" : "web";
+}
+
+const sourceKey = (r: SearchResult): string => (r.outlet ? `outlet:${r.outlet.toLowerCase()}` : `host:${hostOf(r.url)}`);
+
+/** Same link without tracking noise, so one page found by two queries counts once. */
+function canonicalUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    for (const k of [...u.searchParams.keys()]) if (/^(utm_|fbclid|gclid|ref$)/i.test(k)) u.searchParams.delete(k);
+    u.hash = "";
+    return `${u.hostname.replace(/^www\./, "")}${u.pathname.replace(/\/$/, "")}${u.search}`.toLowerCase();
+  } catch {
+    return url;
+  }
+}
+
+const titleKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, " ").trim();
+
+/**
+ * Merges result lists into one body of evidence: duplicates (same page, same headline) and
+ * more than two items from one outlet are dropped; official sources go first and the rest
+ * alternate between lists, so no query or provider owns the top of the page.
+ */
+export function diversify(lists: SearchResult[][], limit = MAX_EVIDENCE): SearchResult[] {
+  const seenUrl = new Set<string>();
+  const seenTitle = new Set<string>();
+  const perSource = new Map<string, number>();
+  const rounds = Math.max(0, ...lists.map((l) => l.length));
+  const picked: SearchResult[] = [];
+  for (let i = 0; i < rounds; i++) {
+    for (const list of lists) {
+      const r = list[i];
+      if (!r) continue;
+      const url = canonicalUrl(r.url);
+      const title = titleKey(r.title);
+      const key = sourceKey(r);
+      if (seenUrl.has(url) || (title && seenTitle.has(title)) || (perSource.get(key) ?? 0) >= MAX_PER_SOURCE) continue;
+      seenUrl.add(url);
+      if (title) seenTitle.add(title);
+      perSource.set(key, (perSource.get(key) ?? 0) + 1);
+      picked.push(r);
+    }
+  }
+  const rank = (r: SearchResult) => (sourceKind(r) === "oficial" ? 0 : 1);
+  return picked
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i)
+    .map((x) => x.r)
+    .slice(0, limit);
+}
+
+/** News and the web, interleaved; either one failing still leaves evidence to judge with. */
 export function withNews(web: SearchProvider, news: SearchProvider): SearchProvider {
   return {
     name: `${web.name} + ${news.name}`,
     async search(query, signal) {
       const [n, w] = await Promise.allSettled([news.search(query, signal), web.search(query, signal)]);
       if (n.status === "rejected" && w.status === "rejected") throw w.reason;
-      const seen = new Set<string>();
-      return [...(n.status === "fulfilled" ? n.value : []), ...(w.status === "fulfilled" ? w.value : [])]
-        .filter((r) => !seen.has(r.url) && seen.add(r.url))
-        .slice(0, MAX_RESULTS + NEWS_RESULTS);
+      return diversify([n.status === "fulfilled" ? n.value : [], w.status === "fulfilled" ? w.value : []], MAX_RESULTS + NEWS_RESULTS);
     },
   };
 }

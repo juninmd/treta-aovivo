@@ -22,7 +22,7 @@ export function toSnapshot(meta: DebateMeta, st: SessionState, now = new Date())
       .filter((u) => u.closed)
       .map((u) => ({ id: u.id, speaker: u.speaker, start: u.start, end: u.end, text: u.text, uncertain: u.uncertain ?? null, reviewed: !!u.reviewed })),
     claims: st.claims.map((c) => ({
-      id: c.id, utteranceId: c.utteranceId, speaker: c.speaker, at: c.at, quote: c.quote, query: c.query, status: c.status,
+      id: c.id, utteranceId: c.utteranceId, speaker: c.speaker, at: c.at, quote: c.quote, query: c.query, counterQuery: c.counterQuery ?? null, status: c.status,
       verdict: c.verdict ?? null, explanation: c.explanation ?? null, confidence: c.confidence ?? null, sources: c.sources ?? [], uncertain: !!c.uncertain,
     })),
     fallacies: st.fallacies.map((f) => ({

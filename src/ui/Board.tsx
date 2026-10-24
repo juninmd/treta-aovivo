@@ -76,7 +76,7 @@ export function Board({ speakers, claims, fallacies, onEdit }: { speakers: Speak
           );
         })}
         <div className="rules">
-          <span>verdadeiro +2</span><span>impreciso 0</span><span>enganoso −1</span><span>sem evidência −1</span><span>falso −3</span><span>ad hominem −2</span><span>outra falácia −1</span><span>atribuição incerta não pontua</span>
+          <span>verdadeiro +2</span><span>impreciso 0</span><span>enganoso −1</span><span>sem evidência 0</span><span>falso −3</span><span>ad hominem −2</span><span>outra falácia −1</span><span>atribuição incerta ou confiança abaixo de 50% não pontua</span>
         </div>
       </div>
     </section>
