@@ -1,6 +1,6 @@
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
-import { POINTS } from "./score";
+import { lowConfidence, POINTS } from "./score";
 import type { Claim, Fallacy, Utterance } from "./types";
 
 export type MomentKind = "mentira" | "enganou" | "acertou" | "sem evidência" | "falácia";
@@ -20,7 +20,7 @@ export interface Moment {
 export function rankMoments(claims: Claim[], fallacies: Fallacy[], limit = 10): Moment[] {
   const items: Moment[] = [];
   for (const c of claims) {
-    if (c.status !== "done" || !c.verdict || c.verdict === "impreciso" || c.uncertain) continue;
+    if (c.status !== "done" || !c.verdict || c.verdict === "impreciso" || c.uncertain || lowConfidence(c)) continue;
     const kind: MomentKind = c.verdict === "falso" ? "mentira" : c.verdict === "enganoso" ? "enganou" : c.verdict === "verdadeiro" ? "acertou" : "sem evidência";
     const label = { mentira: "Mentira", enganou: "Enganou", acertou: "Acertou", "sem evidência": "Sem evidência", falácia: "" }[kind];
     items.push({ kind, label, speaker: c.speaker, at: c.at, quote: c.quote, why: c.explanation ?? "", weight: Math.abs(POINTS[c.verdict]), utteranceId: c.utteranceId });

@@ -4,11 +4,17 @@ export const POINTS: Record<Verdict, number> & { adHominem: number; otherFallacy
   verdadeiro: 2,
   impreciso: 0,
   enganoso: -1,
-  "sem evidência": -1,
+  // Not finding a source says nothing about the speaker; it must not cost points.
+  "sem evidência": 0,
   falso: -3,
   adHominem: -2,
   otherFallacy: -1,
 };
+
+/** Below this the judge itself is unsure: the verdict is shown but does not score. */
+export const MIN_SCORING_CONFIDENCE = 0.5;
+
+export const lowConfidence = (c: Claim): boolean => c.confidence != null && c.confidence < MIN_SCORING_CONFIDENCE;
 
 export interface BoardRow {
   speaker: number;
@@ -18,6 +24,8 @@ export interface BoardRow {
   imprecise: number;
   truths: number;
   unproven: number;
+  /** Share of the decided claims (true, imprecise, misleading, false) that held up; null with none. */
+  accuracy: number | null;
   adHominem: number;
   otherFallacies: number;
   talkSeconds: number;
@@ -27,12 +35,16 @@ export function scoreboard(speakers: Speaker[], claims: Claim[], fallacies: Fall
   const rows = new Map<number, BoardRow>(
     speakers.map((s) => [
       s.id,
-      { speaker: s.id, points: 0, lies: 0, misleading: 0, imprecise: 0, truths: 0, unproven: 0, adHominem: 0, otherFallacies: 0, talkSeconds: s.talkSeconds },
+      { speaker: s.id, points: 0, lies: 0, misleading: 0, imprecise: 0, truths: 0, unproven: 0, accuracy: null, adHominem: 0, otherFallacies: 0, talkSeconds: s.talkSeconds },
     ]),
   );
   for (const c of claims) {
     const r = rows.get(c.speaker);
     if (!r || c.status !== "done" || !c.verdict || c.uncertain) continue;
+    if (lowConfidence(c)) {
+      r.unproven++;
+      continue;
+    }
     r.points += POINTS[c.verdict];
     if (c.verdict === "falso") r.lies++;
     else if (c.verdict === "enganoso") r.misleading++;
@@ -51,7 +63,12 @@ export function scoreboard(speakers: Speaker[], claims: Claim[], fallacies: Fall
       r.points += POINTS.otherFallacy;
     }
   }
-  return [...rows.values()].sort((a, b) => b.points - a.points || b.talkSeconds - a.talkSeconds);
+  for (const r of rows.values()) {
+    const decided = r.truths + r.imprecise + r.misleading + r.lies;
+    r.accuracy = decided ? r.truths / decided : null;
+  }
+  // Ties go to who held up better, not to who talked more: airtime is not merit.
+  return [...rows.values()].sort((a, b) => b.points - a.points || (b.accuracy ?? 0) - (a.accuracy ?? 0) || b.talkSeconds - a.talkSeconds);
 }
 
 function hamming(a: string, b: string): number {

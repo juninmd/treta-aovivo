@@ -224,7 +224,7 @@ describe("news search", () => {
 
   it("turns Google News items into dated headlines from named outlets", () => {
     expect(parseGoogleNewsRss(rss)).toEqual([
-      { title: "Lula cobra explicações de Flávio sobre R$ 134 milhões", url: "https://news.google.com/rss/articles/abc", snippet: "Notícia de Poder360, publicada em 2026-10-19" },
+      { title: "Lula cobra explicações de Flávio sobre R$ 134 milhões", url: "https://news.google.com/rss/articles/abc", outlet: "Poder360", snippet: "Notícia de Poder360, publicada em 2026-10-19" },
     ]);
   });
 

@@ -29,14 +29,14 @@ function deps(texts: Record<string, string>, overrides: Partial<SessionDeps> = {
 const ATTACK = "O senhor nunca trabalhou na vida e a inflação passou de 15%.";
 
 describe("work queued before a merge", () => {
-  it("is analysed and judged under the surviving voice's name", async () => {
+  it("is analysed under the surviving voice's name and judged without any name", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
     const analyzed: string[] = [];
-    const judged: string[] = [];
+    const judged: unknown[] = [];
     const base = deps({ A: "Boa noite a todos, começa o debate.", B: ATTACK, C: "Tempo." });
     const s = new DebateSession(
-      { ...base, analyze: async (i) => { analyzed.push(i.speakerName); await gate; return base.analyze(i); }, judge: async (i) => { judged.push(i.speakerName); return base.judge(i); } },
+      { ...base, analyze: async (i) => { analyzed.push(i.speakerName); await gate; return base.analyze(i); }, judge: async (i) => { judged.push(i); return base.judge(i); } },
       { nameAfterTurns: 0 },
     );
     [{ type: "started", source: "t" } as EngineEvent, seg(1, 0, 0, 3, "A"), seg(2, 1, 3.5, 9, "B"), seg(3, 0, 9.5, 11, "C")].forEach((e) => s.handle(e));
@@ -48,7 +48,8 @@ describe("work queued before a merge", () => {
     await settle();
     await s.whenIdle();
     expect(analyzed.slice(1)).toEqual(["Lula", "Lula"]);
-    expect(judged).toEqual(["Lula"]);
+    expect(judged).toHaveLength(1);
+    expect(JSON.stringify(judged)).not.toContain("Lula");
   });
 });
 

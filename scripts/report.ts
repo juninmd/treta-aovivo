@@ -46,6 +46,7 @@ export function renderReport(r: ReportInput): string {
   for (const c of r.claims) {
     out.push(`- ${ts(c.at)} **${cell(name(c.speaker))}**${c.uncertain ? " _(atribuição incerta)_" : ""}: “${c.quote}” → **${c.verdict ?? c.status}**${c.confidence != null ? ` (${Math.round(c.confidence * 100)}%)` : ""}`);
     out.push(`  - busca: \`${c.query}\``);
+    if (c.counterQuery) out.push(`  - busca pela fonte primária: \`${c.counterQuery}\``);
     if (c.explanation) out.push(`  - ${c.explanation}`);
     for (const s of c.sources ?? []) out.push(`  - fonte: [${cell(s.title)}](${s.url})`);
     if (c.error) out.push(`  - erro: ${c.error}`);

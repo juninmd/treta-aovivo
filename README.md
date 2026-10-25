@@ -112,10 +112,11 @@ flowchart LR
 - **Motor em processo separado.** Com pouca memória o onnxruntime aborta o processo inteiro; cai o motor, não a janela, e a transcrição até ali fica. Só um motor roda por vez, mesmo com cliques repetidos em Iniciar.
 - **Prazo em cada chamada.** Transcrição (60 s), LLM (90 s), busca (45 s) e nomes (120 s) têm limite próprio: provedor travado vira erro visível, não fila parada.
 - **Citação conferida.** O LLM devolve o trecho citado e o app o procura no texto original: afirmação que não bate com o que foi dito e falácia sem trecho literal são descartadas.
+- **Juiz cego e fontes variadas.** O juiz não recebe o nome de quem falou. Cada afirmação gera duas buscas, uma da alegação e outra da fonte oficial ou primária sem repetir o número; páginas repetidas e mais de dois itens do mesmo veículo são descartados, e fontes oficiais vêm primeiro. Veredito sem fonte citada vira "sem evidência".
 - **Incerteza não pontua.** Duas vozes juntas, quem chama o próprio nome e voz com menos de 10 s de fala ficam marcadas até alguém revisar.
 - **Nomes conferidos.** O palpite vem da fala (cumprimentos, quem é chamado antes de responder) e é checado: quem chama "Helena" pelo nome não pode ser a Helena.
 - **Fotos estáveis.** O motor recorta o rosto que domina a cena durante falas longas; a foto automática só aparece com 3+ capturas, então corte de câmera não vira foto errada.
-- **Placar:** verdadeiro +2, impreciso 0, enganoso −1, sem evidência −1, falso −3, ad hominem −2, outra falácia −1. O líder do duelo ganha a coroa, que cai de novo quando a liderança muda.
+- **Placar:** verdadeiro +2, impreciso 0, enganoso −1, sem evidência 0 (não achar fonte não é erro de quem falou), falso −3, ad hominem −2, outra falácia −1. Veredito com confiança abaixo de 50% aparece, mas não pontua. Empate vai para quem acertou mais, não para quem falou mais. O líder do duelo ganha a coroa, que cai de novo quando a liderança muda.
 
 ## Configuração
 
@@ -178,6 +179,7 @@ Commits seguem [Conventional Commits](https://www.conventionalcommits.org/) (`fi
 - Duas pessoas falando ao mesmo tempo não têm atribuição confiável; esses turnos ficam marcados e fora do placar.
 - Voz com menos de 10 s de fala não pontua: costuma ser pedaço de outra voz. Pontua quando falar mais ou quando alguém confirmar.
 - O veredito depende das fontes encontradas. "Mentira" no placar significa afirmação classificada como falsa pelas fontes, não uma conclusão sobre intenção.
+- Falácias dependem do julgamento do LLM (só entram as de confiança 70% ou mais); a pontuação por elas é a parte menos objetiva do placar.
 - O DuckDuckGo pode limitar buscas em sequência; Google Custom Search ou Serper (com chave) são mais estáveis.
 - Mesma pessoa em duas vozes acontece quando a voz muda muito (grito, microfone); use "juntar vozes".
 - Em **Áudio do sistema** e **Microfone** não há vídeo, então não há foto automática.

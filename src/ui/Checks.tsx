@@ -1,4 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { lowConfidence } from "../core/score";
 import { httpUrl } from "../core/search";
 import type { Claim, Speaker } from "../core/types";
 import { Avatar, count, fmt, speakerColor } from "./common";
@@ -27,7 +28,7 @@ export function Checks({ claims, speakers, focus }: { claims: Claim[]; speakers:
                 </span>
               </header>
               <blockquote>“{c.quote}”</blockquote>
-              <div className="q">busca: {c.query}</div>
+              <div className="q">busca: {c.query}{c.counterQuery ? ` · fonte primária: ${c.counterQuery}` : ""}</div>
               {c.explanation && <p className="why">{c.explanation}</p>}
               {c.error && <p className="why err">{c.error}</p>}
               {!!c.sources?.length && (
@@ -44,7 +45,7 @@ export function Checks({ claims, speakers, focus }: { claims: Claim[]; speakers:
                   })}
                 </ul>
               )}
-              {c.confidence != null && <div className="conf">confiança {Math.round(c.confidence * 100)}%</div>}
+              {c.confidence != null && <div className="conf">confiança {Math.round(c.confidence * 100)}%{lowConfidence(c) ? " · não pontua" : ""}</div>}
             </article>
           );
         })}
