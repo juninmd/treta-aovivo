@@ -6,7 +6,8 @@ export function createLimiter(concurrency: number) {
     return new Promise<T>((resolve, reject) => {
       const start = () => {
         active++;
-        task()
+        Promise.resolve()
+          .then(task)
           .then(resolve, reject)
           .finally(() => {
             active--;
