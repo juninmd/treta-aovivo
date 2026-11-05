@@ -86,7 +86,7 @@ pub fn ahash(gray: &[u8], frame_w: u32, x: u32, y: u32, size: u32) -> u64 {
 }
 
 fn to_gray(rgb: &[u8]) -> Vec<u8> {
-    rgb.chunks_exact(3).map(|p| ((p[0] as u32 * 299 + p[1] as u32 * 587 + p[2] as u32 * 114) / 1000) as u8).collect()
+    rgb.as_chunks::<3>().map(|p| ((p[0] as u32 * 299 + p[1] as u32 * 587 + p[2] as u32 * 114) / 1000) as u8).collect()
 }
 
 pub struct FaceGrabber {
