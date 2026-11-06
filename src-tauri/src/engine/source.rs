@@ -150,7 +150,7 @@ fn pump_pcm(mut stdout: impl Read + Send + 'static, tx: SyncSender<Vec<f32>>, sp
             if bytes.len() % 2 == 1 {
                 carry = bytes.pop();
             }
-            let chunk: Vec<f32> = bytes.chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]]) as f32 / 32768.0).collect();
+            let chunk: Vec<f32> = bytes.as_chunks::<2>().0.iter().map(|b| i16::from_le_bytes([b[0], b[1]]) as f32 / 32768.0).collect();
             samples += chunk.len() as u64;
             let due = std::time::Duration::from_secs_f64(samples as f64 / PROCESS_RATE as f64 / speed as f64);
             if let Some(wait) = due.checked_sub(started.elapsed()) {
