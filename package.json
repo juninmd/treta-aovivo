@@ -15,12 +15,12 @@
     "whisper:local": "uv run tools/whisper-server/server.py"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.108",
-    "@ai-sdk/openai-compatible": "^3.0.84",
+    "@ai-sdk/openai": "^4.0.114",
+    "@ai-sdk/openai-compatible": "^3.0.90",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-http": "^2.8.3",
+    "@tauri-apps/plugin-http": "^2.9.0",
     "@tauri-apps/plugin-opener": "^2",
-    "ai": "^7.0.162",
+    "ai": "^7.0.169",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zod": "^4.6.7"
@@ -30,11 +30,11 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^6.2.1",
-    "playwright-core": "1.64.1",
+    "@vitejs/plugin-react": "^6.3.0",
+    "playwright-core": "1.65.0",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
-    "vite": "^8.3.5",
+    "vite": "^8.3.7",
     "vitest": "^5.1.0"
   }
 }
