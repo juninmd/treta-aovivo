@@ -11,6 +11,8 @@ function normalizeWithMap(text: string): { norm: string; map: number[] } {
   let lastSpace = true;
   for (let i = 0; i < text.length; i++) {
     const c = fold(text[i]);
+    // A standalone combining mark (decomposed "é") belongs to the letter before it, not a word break.
+    if (c === "" && /[\u0300-\u036f]/.test(text[i])) continue;
     if (/[a-z0-9]/.test(c)) {
       norm += c;
       map.push(i);

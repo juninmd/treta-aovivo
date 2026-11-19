@@ -23,6 +23,8 @@ describe("quotes", () => {
   });
   it("rejects invented quotes and measures partial overlap", () => {
     expect(locateQuote("ele falou de saúde", "inflação de 15%")).toBeNull();
+    // Decomposed accents (e + U+0301) must not split the word in two.
+    expect(locateQuote("o caf\u0065\u0301s subiu", "cafés subiu")!.text).toBe("caf\u0065\u0301s subiu");
     expect(quoteOverlap("a inflação dos alimentos subiu muito", "inflação alimentos subiu 15%")).toBeGreaterThan(0.6);
   });
 });
