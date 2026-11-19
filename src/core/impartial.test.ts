@@ -59,6 +59,11 @@ describe("evidence mix", () => {
     expect(out.map((r) => r.url)).toEqual(["https://a.example/x?utm_source=z"]);
   });
 
+  it("a headline with and without accents is the same headline", () => {
+    const out = diversify([[res("https://a.example/1", "Inflação sobe em março")], [res("https://b.example/2", "Inflacao sobe em marco")]]);
+    expect(out.map((r) => r.url)).toEqual(["https://a.example/1"]);
+  });
+
   it("an outlet fills at most two slots, even when its news links share one host", () => {
     const news = (n: number, outlet: string) => res(`https://news.google.com/rss/articles/${n}`, `t${n}`, { outlet, snippet: "Notícia" });
     const out = diversify([[news(1, "Jornal"), news(2, "Jornal"), news(3, "Jornal"), news(4, "Outro")]]);

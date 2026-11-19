@@ -227,7 +227,7 @@ function canonicalUrl(url: string): string {
   }
 }
 
-const titleKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, " ").trim();
+const titleKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
 /**
  * Merges result lists into one body of evidence: duplicates (same page, same headline) and
