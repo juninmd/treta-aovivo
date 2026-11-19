@@ -16,6 +16,18 @@ describe("search failures are not evidence", () => {
     await expect(ddg.search("selic")).rejects.toThrow(/DuckDuckGo/);
   });
 
+  it("an aborted search stops waiting for the rate-limit backoff and does not hit the network again", async () => {
+    let calls = 0;
+    const ddg = duckduckgo(async () => { calls++; return new Response("blocked", { status: 429 }); }, 0, [60_000]);
+    const ctl = new AbortController();
+    const p = ddg.search("selic", ctl.signal);
+    const expectation = expect(p).rejects.toThrow(/stop/);
+    await new Promise((r) => setTimeout(r, 20));
+    ctl.abort(new Error("stop"));
+    await expectation;
+    expect(calls).toBe(1);
+  });
+
   it("an out-of-range numeric entity does not break the whole page", () => {
     expect(decodeHtml("a &#99999999; b &#x110000; c")).toBe("a &#99999999; b &#x110000; c");
   });

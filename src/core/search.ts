@@ -80,11 +80,25 @@ const DDG_BACKOFF_MS = [8000, 20000];
 export function duckduckgo(fetchFn: FetchFn = fetch, minIntervalMs = 3000, backoffMs = DDG_BACKOFF_MS): SearchProvider {
   let last = 0;
   let chain: Promise<unknown> = Promise.resolve();
-  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  // Abortable: stopping a debate must not leave searches waiting out the rate-limit delays.
+  const sleep = (ms: number, signal?: AbortSignal) =>
+    new Promise<void>((resolve, reject) => {
+      if (signal?.aborted) return reject(signal.reason);
+      const onAbort = () => {
+        clearTimeout(timer);
+        reject(signal?.reason);
+      };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      }, ms);
+      signal?.addEventListener("abort", onAbort, { once: true });
+    });
   const attempt = async (query: string, signal?: AbortSignal) => {
     // DuckDuckGo rate-limits bursts: requests are serialized and spaced.
     const wait = last + minIntervalMs - Date.now();
-    if (wait > 0) await sleep(wait);
+    if (wait > 0) await sleep(wait, signal);
+    signal?.throwIfAborted();
     last = Date.now();
     const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=br-pt`;
     const res = await fetchFn(url, { headers: { "User-Agent": UA, "Accept-Language": "pt-BR,pt;q=0.9" }, signal });
@@ -98,7 +112,7 @@ export function duckduckgo(fetchFn: FetchFn = fetch, minIntervalMs = 3000, backo
       if (!r.refused) return parseDuckDuckGoHtml(r.html);
       if (i >= backoffMs.length) throw new Error(`DuckDuckGo recusou a busca (HTTP ${r.status}) mesmo após esperar; use Google ou Serper em Configurar`);
       // Holding the queue here also slows every later search, which is what a rate limit asks for.
-      await sleep(backoffMs[i]);
+      await sleep(backoffMs[i], signal);
     }
   };
   return {
