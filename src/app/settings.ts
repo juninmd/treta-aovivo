@@ -34,7 +34,9 @@ type Stored = Omit<Settings, "llm" | "asr" | "search"> & {
 export async function loadSettings(): Promise<Settings> {
   let stored: Partial<Stored> = {};
   try {
-    stored = JSON.parse(localStorage.getItem(STORE_KEY) ?? "{}") as Partial<Stored>;
+    const parsed: unknown = JSON.parse(localStorage.getItem(STORE_KEY) ?? "{}");
+    // "null" or a non-object would throw below and lock the app out of its own settings.
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) stored = parsed as Partial<Stored>;
   } catch {
     stored = {};
   }
