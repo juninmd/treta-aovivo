@@ -104,6 +104,19 @@ describe("DebateSession", () => {
     s.handle(face(0.3));
     expect(s.getState().speakers[0].portraits.map((p) => p.image)).toEqual(["img0.3", "img0.1"]);
   });
+
+  it("merging voices keeps the largest faces of both, not just the survivor's", () => {
+    const s = new DebateSession(fakeDeps());
+    const face = (speaker: number, w: number): EngineEvent => ({ type: "face", speaker, t: 1, portrait: { image: `s${speaker}-${w}`, score: 3, faceWidth: w, hash: "00" } });
+    for (let i = 1; i <= 8; i++) s.handle(face(0, i / 100)); // survivor already full of small cutaways
+    s.handle(face(1, 0.5));
+    s.handle(face(1, 0.4));
+    s.mergeSpeakers(1, 0);
+    const kept = s.getState().speakers[0].portraits;
+    expect(kept).toHaveLength(8);
+    expect(kept.slice(0, 2).map((p) => p.image)).toEqual(["s1-0.5", "s1-0.4"]);
+    expect(kept.map((p) => p.faceWidth)).toEqual([...kept.map((p) => p.faceWidth)].sort((a, b) => b - a));
+  });
 });
 
 describe("errText", () => {
