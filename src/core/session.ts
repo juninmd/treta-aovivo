@@ -46,6 +46,8 @@ export interface SessionState {
 }
 
 const MAX_PORTRAITS = 8;
+/** Largest faces first, capped: the medoid pick and the dialog both rely on this order. */
+const topPortraits = (portraits: Portrait[]): Portrait[] => [...portraits].sort((a, b) => b.faceWidth - a.faceWidth).slice(0, MAX_PORTRAITS);
 /** Voices that barely talked (blips, applause) don't keep re-triggering name inference. */
 const MIN_NAMED_TALK_SECS = 20;
 /** Less speech than this on a voice is likely a fragment of another voice (a 3 s blip): its turns don't score yet. */
@@ -193,8 +195,7 @@ export class DebateSession {
     const speaker = this.canonical(raw);
     const speakers = this.ensureSpeaker(speaker).map((s) => {
       if (s.id !== speaker) return s;
-      const portraits = [...s.portraits, portrait].sort((a, b) => b.faceWidth - a.faceWidth).slice(0, MAX_PORTRAITS);
-      return { ...s, portraits };
+      return { ...s, portraits: topPortraits([...s.portraits, portrait]) };
     });
     this.set({ speakers });
   }
@@ -379,7 +380,7 @@ export class DebateSession {
     this.set({
       speakers: this.state.speakers
         .filter((s) => s.id !== from)
-        .map((s) => (s.id === into ? { ...s, talkSeconds: s.talkSeconds + a.talkSeconds, portraits: [...s.portraits, ...a.portraits].slice(0, MAX_PORTRAITS) } : s)),
+        .map((s) => (s.id === into ? { ...s, talkSeconds: s.talkSeconds + a.talkSeconds, portraits: topPortraits([...s.portraits, ...a.portraits]) } : s)),
       utterances: this.state.utterances.map(re),
       claims: this.state.claims.map(re),
       fallacies: this.state.fallacies.map(re),
