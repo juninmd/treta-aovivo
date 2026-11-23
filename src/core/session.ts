@@ -53,6 +53,21 @@ const MIN_NAMED_TALK_SECS = 20;
 /** Less speech than this on a voice is likely a fragment of another voice (a 3 s blip): its turns don't score yet. */
 const MIN_SCORED_TALK_SECS = 10;
 /** Error message; provider failures also carry the start of the response body ("Invalid JSON response" alone says nothing). */
+/**
+ * The last `max` characters of the transcript joined by spaces, same as
+ * `texts.join(" ").slice(-max)` but walking back only as far as needed: it runs
+ * on every audio segment, and the transcript grows for the whole debate.
+ */
+export function transcriptTail(utterances: readonly Pick<Utterance, "text">[], max: number): string {
+  const parts: string[] = [];
+  let length = -1;
+  for (let i = utterances.length - 1; i >= 0 && length < max; i--) {
+    parts.push(utterances[i]!.text);
+    length += utterances[i]!.text.length + 1;
+  }
+  return parts.reverse().join(" ").slice(-max);
+}
+
 export function errText(e: unknown): string {
   if (e instanceof Error && e.name === "TimeoutError") return "o provedor não respondeu a tempo";
   const msg = e instanceof Error ? e.message : String(e);
@@ -174,7 +189,7 @@ export class DebateSession {
     void this.track(
       this.asr(async () => {
         const started = this.clock();
-        const prompt = this.state.utterances.map((u) => u.text).join(" ").slice(-300);
+        const prompt = transcriptTail(this.state.utterances, 300);
         try {
           const text = await this.deps.transcribe(clip, prompt);
           this.timing("transcribe", started);
