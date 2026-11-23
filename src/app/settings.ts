@@ -25,6 +25,16 @@ const STORE_KEY = "treta.settings.v1";
 // Secrets go to the OS credential store; everything else is plain preferences.
 const SECRET_KEYS = { llmKey: "llm.apiKey", asrKey: "asr.apiKey", googleKey: "search.googleKey", serperKey: "search.serperKey" } as const;
 
+// Last value known to be in the credential store, per key. saveSettings runs on every
+// keystroke of any field; only secrets that actually changed cost an IPC write.
+const persistedSecrets = new Map<string, string>();
+
+async function writeSecret(key: string, value: string): Promise<void> {
+  if (persistedSecrets.get(key) === value) return;
+  await secrets.set(key, value);
+  persistedSecrets.set(key, value);
+}
+
 type Stored = Omit<Settings, "llm" | "asr" | "search"> & {
   llm: Omit<Endpoint, "apiKey">;
   asr: Omit<Settings["asr"], "apiKey">;
@@ -49,7 +59,15 @@ export async function loadSettings(): Promise<Settings> {
     participants: stored.participants ?? "",
   };
   const [llmKey, asrKey, googleKey, serperKey] = await Promise.all(
-    Object.values(SECRET_KEYS).map((k) => secrets.get(k).catch(() => null)),
+    Object.values(SECRET_KEYS).map((k) =>
+      secrets.get(k).then(
+        (value) => {
+          persistedSecrets.set(k, value ?? "");
+          return value;
+        },
+        () => null,
+      ),
+    ),
   );
   s.llm.apiKey = llmKey ?? "";
   s.asr.apiKey = asrKey ?? "";
@@ -73,10 +91,10 @@ export async function saveSettings(s: Settings): Promise<void> {
     // Preferences are a convenience; secrets below are what must persist.
   }
   await Promise.all([
-    secrets.set(SECRET_KEYS.llmKey, s.llm.apiKey ?? ""),
-    secrets.set(SECRET_KEYS.asrKey, s.asr.apiKey ?? ""),
-    secrets.set(SECRET_KEYS.googleKey, s.search.googleKey),
-    secrets.set(SECRET_KEYS.serperKey, s.search.serperKey),
+    writeSecret(SECRET_KEYS.llmKey, s.llm.apiKey ?? ""),
+    writeSecret(SECRET_KEYS.asrKey, s.asr.apiKey ?? ""),
+    writeSecret(SECRET_KEYS.googleKey, s.search.googleKey),
+    writeSecret(SECRET_KEYS.serperKey, s.search.serperKey),
   ]);
 }
 
