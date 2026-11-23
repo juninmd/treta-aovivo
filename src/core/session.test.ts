@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { APICallError } from "ai";
 import { toSnapshot } from "./archive";
-import { DebateSession, errText, type SessionDeps } from "./session";
+import { DebateSession, errText, transcriptTail, type SessionDeps } from "./session";
 import type { EngineEvent } from "./types";
 
 function fakeDeps(overrides: Partial<SessionDeps> = {}): SessionDeps & { calls: string[] } {
@@ -228,5 +228,15 @@ describe("merging voices mid-debate", () => {
     const st = s.getState();
     expect(st.speakers.map((x) => x.id)).toEqual([0]);
     expect(st.utterances.every((u) => u.speaker === 0)).toBe(true);
+  });
+});
+
+describe("transcriptTail", () => {
+  it("matches joining the whole transcript and keeping the last characters", () => {
+    const cases = [[], [""], ["a"], ["sim", "", "não"], Array.from({ length: 200 }, (_, i) => "x".repeat(i % 37)), ["y".repeat(500)], ["a".repeat(299), "b"]];
+    for (const texts of cases) {
+      const utterances = texts.map((text) => ({ text }));
+      for (const max of [1, 299, 300, 301]) expect(transcriptTail(utterances, max)).toBe(texts.join(" ").slice(-max));
+    }
   });
 });
