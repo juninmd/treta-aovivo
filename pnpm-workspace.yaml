@@ -1,1 +1,7 @@
 minimumReleaseAge: 4320
+
+# @juninmd/sonido 2.4.0 is our own design system, released after the 3-day
+# maturity window. Excluded for that exact version only; drop this entry once
+# 2.4.0 matures instead of widening the allowlist.
+minimumReleaseAgeExclude:
+  - "@juninmd/sonido@2.4.0"

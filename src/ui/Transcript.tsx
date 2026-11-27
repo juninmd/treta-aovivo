@@ -1,3 +1,4 @@
+import { Button, EmptyState, Equalizer, FilterChips } from "@juninmd/sonido";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { locateQuote } from "../core/quotes";
 import type { Claim, Fallacy, Speaker, Utterance } from "../core/types";
@@ -76,17 +77,19 @@ export function Transcript({ speakers, utterances, claims, fallacies, speaking, 
         <h2 id="h-feed">Transcrição</h2>
         <small>sublinhado = afirmação checável · clique para ver a checagem</small>
       </div>
-      <div className="filters" role="group" aria-label="Filtrar por falante">
-        <button type="button" aria-pressed={filter === "all"} onClick={() => setPicked("all")}>Todos</button>
-        {speakers.map((s) => (
-          <button type="button" key={s.id} aria-pressed={filter === s.id} onClick={() => setPicked(s.id)}>{s.name}</button>
-        ))}
-      </div>
+      <FilterChips
+        label="Filtrar por falante"
+        allLabel="Todos"
+        chips={speakers.map((s) => ({ key: String(s.id), label: s.name }))}
+        value={filter === "all" ? null : String(filter)}
+        onChange={(key) => setPicked(key === null ? "all" : Number(key))}
+      />
       <div className="feed" aria-live="polite">
         {!shown.length && (
-          <p className="empty">
-            {running ? "Ouvindo… a primeira fala aparece alguns segundos depois de terminar." : "Escolha a fonte do debate e clique em Iniciar. Cada voz ganha uma cor, um nome e uma foto."}
-          </p>
+          <EmptyState
+            title={running ? "Ouvindo…" : "Sem falas ainda"}
+            description={running ? "A primeira fala aparece alguns segundos depois de terminar." : "Escolha a fonte do debate e clique em Iniciar. Cada voz ganha uma cor, um nome e uma foto."}
+          />
         )}
         {shown.map((u) => {
           const sp = byId.get(u.speaker);
@@ -117,14 +120,14 @@ export function Transcript({ speakers, utterances, claims, fallacies, speaking, 
                   <span className="who">{sp?.name ?? `Falante ${u.speaker + 1}`}</span>
                 )}
                 {u.reviewed && <span className="reviewed" title="Revisado">✓ revisado</span>}
-                {!u.closed && <span className="wave" aria-hidden="true"><span /><span /><span /><span /></span>}
+                {!u.closed && <Equalizer color="var(--c)" />}
                 <p>{highlight(u, claims.filter((c) => c.utteranceId === u.id), fallacies.filter((f) => f.utteranceId === u.id), onClaim)}</p>
                 {u.uncertain && (
                   <p className="hint uncertain">
                     {UNCERTAIN[u.uncertain]} · atribuição incerta, não pontua ·{" "}
-                    <button type="button" className="link" onClick={() => onReassign(u.id, u.speaker)}>confirmar {sp?.name ?? "falante"}</button>
+                    <Button variant="link" onClick={() => onReassign(u.id, u.speaker)}>confirmar {sp?.name ?? "falante"}</Button>
                     {" · "}
-                    <button type="button" className="link" onClick={() => setReviewing(u.id)}>trocar falante</button>
+                    <Button variant="link" onClick={() => setReviewing(u.id)}>trocar falante</Button>
                   </p>
                 )}
                 {fallacies.some((f) => f.utteranceId === u.id) && (
@@ -136,7 +139,7 @@ export function Transcript({ speakers, utterances, claims, fallacies, speaking, 
             </div>
           );
         })}
-        {running && speaking && <div className="listening">ouvindo<span className="wave" aria-hidden="true"><span /><span /><span /><span /></span></div>}
+        {running && speaking && <div className="listening">ouvindo<Equalizer color="var(--c)" /></div>}
         <div ref={end} />
       </div>
     </section>

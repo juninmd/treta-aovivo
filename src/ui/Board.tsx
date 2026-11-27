@@ -1,3 +1,4 @@
+import { Badge, EmptyState } from "@juninmd/sonido";
 import { scoreboard, type BoardRow } from "../core/score";
 import type { Claim, Fallacy, Speaker } from "../core/types";
 import { Avatar, count, fmt, speakerColor } from "./common";
@@ -50,7 +51,7 @@ export function Board({ speakers, claims, fallacies, onEdit }: { speakers: Speak
       </div>
       {duel.length === 2 && <Duel a={duel[0]} b={duel[1]} byId={byId} />}
       <div className="board">
-        {!rows.length && <p className="empty pad">O placar aparece quando as primeiras vozes forem identificadas.</p>}
+        {!rows.length && <EmptyState title="Placar vazio" description="O placar aparece quando as primeiras vozes forem identificadas." />}
         {rows.map((r) => {
           const sp = byId.get(r.speaker)!;
           return (
@@ -63,11 +64,11 @@ export function Board({ speakers, claims, fallacies, onEdit }: { speakers: Speak
                     <span className="voice">voz #{r.speaker + 1} · {fmt(r.talkSeconds)} de fala</span>
                   </div>
                   <div className="counts">
-                    <div className="lie"><b>{r.lies}</b>mentiras</div>
-                    <div className="mis"><b>{r.misleading}</b>enganosas</div>
-                    <div className="ok"><b>{r.truths}</b>acertos</div>
-                    <div><b>{r.adHominem}</b>ad hominem</div>
-                    <div><b>{r.otherFallacies}</b>outras falácias</div>
+                    <div className="lie"><Badge appearance="count">{r.lies}</Badge>mentiras</div>
+                    <div className="mis"><Badge appearance="count">{r.misleading}</Badge>enganosas</div>
+                    <div className="ok"><Badge appearance="count">{r.truths}</Badge>acertos</div>
+                    <div><Badge appearance="count">{r.adHominem}</Badge>ad hominem</div>
+                    <div><Badge appearance="count">{r.otherFallacies}</Badge>outras falácias</div>
                   </div>
                 </div>
               </div>

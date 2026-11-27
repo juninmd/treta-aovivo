@@ -1,0 +1,52 @@
+/*
+ * OLD component rules, copied verbatim from `git show origin/main:src/styles.css`
+ * (@ 1f79fa1) so the "Antes" column renders exactly as the app did before the
+ * Sonido migration. Rules that the migration removed from src/styles.css live
+ * here; nothing in src/ imports this file.
+ */
+
+.onair { display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1 var(--font-mono); letter-spacing: .12em; padding: 5px 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); }
+.onair i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.live .onair { color: var(--tally); border-color: var(--tally); }
+.live .onair i { background: var(--tally); animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; box-shadow: var(--lift); }
+.btn.primary { color: var(--on-accent); border-color: transparent; background: linear-gradient(120deg in oklab, var(--accent-a), var(--accent-b)); box-shadow: 0 1px 0 rgb(255 255 255 / .35) inset, 0 8px 22px -8px color-mix(in oklab, var(--accent-a) 70%, transparent); }
+.link { background: none; border: 0; padding: 0; color: var(--s1); text-decoration: underline; text-align: left; }
+.btn, .seg button, .filters button, .thumb, .chip, button.claim {
+  transition: transform .18s var(--ease), background-color .18s, border-color .18s, color .18s, box-shadow .25s var(--ease), filter .18s;
+}
+.btn:not(:disabled):hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--fg) 35%, var(--line)); }
+.btn.primary:not(:disabled):hover { filter: brightness(1.08) saturate(1.1); box-shadow: 0 1px 0 rgb(255 255 255 / .4) inset, 0 12px 28px -8px color-mix(in oklab, var(--accent-a) 80%, transparent); }
+.btn:not(:disabled):active { transform: translateY(0) scale(.97); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.chip { font: 12px/1 var(--font-mono); color: var(--muted); padding: 5px 9px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); }
+.chip b { color: var(--fg); font-weight: 600; }
+
+.empty { color: var(--muted); margin: 8px 0; }
+.empty.pad { padding: 12px; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.filters button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--muted); }
+.filters button[aria-pressed="true"] { color: var(--fg); border-color: var(--fg); }
+.filters button:not(:disabled):hover { color: var(--fg); border-color: var(--muted); }
+
+.wave { display: inline-flex; gap: 2px; align-items: center; height: 14px; vertical-align: middle; margin-left: 6px; }
+.wave span { width: 3px; background: var(--c); border-radius: 2px; animation: wv .9s infinite ease-in-out; }
+.wave span:nth-child(2) { animation-delay: .15s; } .wave span:nth-child(3) { animation-delay: .3s; } .wave span:nth-child(4) { animation-delay: .45s; }
+@keyframes wv { 0%, 100% { height: 4px; } 50% { height: 14px; } }
+
+.counts { display: grid; grid-template-columns: repeat(5, auto); justify-content: space-between; gap: 4px 8px; margin-top: 6px; }
+.counts div { font-size: 11px; color: var(--muted); line-height: 1.2; }
+.counts b { display: block; font: 600 15px/1.2 var(--font-mono); color: var(--fg); }
+.counts .lie b { color: var(--v-false); } .counts .mis b { color: var(--v-mis); } .counts .ok b { color: var(--v-true); }
+
+.stamp { font: 800 14px/1 var(--font-display); letter-spacing: .1em; text-transform: uppercase; padding: 4px 8px; border: 2px solid currentColor; border-radius: 3px; transform: rotate(-2deg); white-space: nowrap; }
+.stamp[data-v="verdadeiro"] { color: var(--v-true); } .stamp[data-v="falso"] { color: var(--v-false); }
+.stamp[data-v="enganoso"] { color: var(--v-mis); } .stamp[data-v="impreciso"] { color: var(--v-imp); }
+.stamp[data-v="sem evidência"] { color: var(--v-none); border-style: dashed; }
+.stamp[data-v="checando"], .stamp[data-v="erro"] { color: var(--muted); border-style: dotted; transform: none; font: 600 11px/1 var(--font-mono); }
+
+label.check-row { display: flex; align-items: center; gap: 8px; }

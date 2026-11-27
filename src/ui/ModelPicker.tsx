@@ -1,3 +1,4 @@
+import { Button } from "@juninmd/sonido";
 import { useEffect, useRef, useState } from "react";
 import { defaultReasoning, listModels, PRESETS, REASONING, type Endpoint, type PresetId, type Reasoning } from "../core/providers";
 import { httpFetch } from "../platform/tauri";
@@ -86,7 +87,7 @@ export function EndpointFields({ legend, value, presets, onChange, filter = () =
             <input id={`${id}-model`} value={value.model} placeholder="nome do modelo" onChange={(e) => onChange({ ...value, model: e.target.value })} />
           )}
         </label>
-        <button type="button" className="btn" onClick={() => void refresh()}>Atualizar lista</button>
+        <Button size="xs" appearance="outline" onClick={() => void refresh()}>Atualizar lista</Button>
       </div>
       {reasoning && (
         <label className="wide">
