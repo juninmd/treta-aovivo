@@ -1,0 +1,35 @@
+/*
+ * Sonido bridge: the components keep their shape, scale and motion; the palette
+ * and the typefaces stay the ones of the app (same tokens as src/styles.css).
+ * `:root[data-theme]` ties with Sonido's own `:root[data-theme="light"]`, and this
+ * file is imported after sonido.css, so these values win in both themes.
+ */
+:root[data-theme] {
+  --sn-color-bg: var(--bg);
+  --sn-color-surface: var(--panel);
+  --sn-color-surface-2: var(--panel-2);
+  --sn-color-surface-hover: var(--panel-2);
+  --sn-color-border: var(--line);
+  --sn-color-border-soft: var(--line);
+
+  --sn-color-text: var(--fg);
+  --sn-color-text-dim: var(--muted);
+  --sn-color-text-faint: var(--muted);
+  --sn-color-on-accent: var(--on-accent);
+  --sn-color-on-tint: var(--on-accent);
+
+  --sn-color-accent: var(--accent-a);
+  --sn-color-accent-2: var(--accent-b);
+  --sn-gradient: linear-gradient(120deg in oklab, var(--accent-a), var(--accent-b));
+
+  --sn-color-danger: var(--v-false);
+  --sn-color-success: var(--v-true);
+  --sn-color-warning: var(--v-mis);
+  --sn-color-info: var(--s1);
+  --sn-color-gold: var(--gold);
+  --sn-color-aqua: var(--s4);
+
+  --sn-font: var(--font-body);
+  --sn-font-display: var(--font-display);
+  --sn-font-mono: var(--font-mono);
+}

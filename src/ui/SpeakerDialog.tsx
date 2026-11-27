@@ -1,3 +1,4 @@
+import { Button } from "@juninmd/sonido";
 import { useEffect, useRef, useState } from "react";
 import { bestPortrait, MIN_AUTO_PORTRAITS } from "../core/score";
 import type { Speaker } from "../core/types";
@@ -82,12 +83,12 @@ export function SpeakerDialog({ speaker, others, onClose, onSave, onMerge }: Pro
                 {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
               </select>
             </label>
-            <button type="button" className="btn" disabled={!mergeInto} onClick={() => { onMerge(speaker.id, Number(mergeInto)); onClose(); }}>Juntar vozes</button>
+            <Button size="sm" appearance="outline" disabled={!mergeInto} onClick={() => { onMerge(speaker.id, Number(mergeInto)); onClose(); }}>Juntar vozes</Button>
           </fieldset>
         )}
         <div className="actions">
-          <button type="button" className="btn" onClick={onClose}>Cancelar</button>
-          <button type="submit" className="btn primary">Salvar</button>
+          <Button size="sm" appearance="outline" onClick={onClose}>Cancelar</Button>
+          <Button size="sm" type="submit">Salvar</Button>
         </div>
       </form>
     </dialog>

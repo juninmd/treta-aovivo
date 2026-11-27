@@ -1,0 +1,47 @@
+/*
+ * Layout of the before/after preview only. The components themselves are styled
+ * by src/styles.css (app), legacy/legacy.css (old primitives) and
+ * @juninmd/sonido/styles.css + src/ui/sonido-bridge.css (new primitives).
+ *
+ * The app follows `prefers-color-scheme`; the preview pins the dark palette so a
+ * screenshot always shows the control-room look the app is designed for. Values
+ * copied from the dark `:root` block of src/styles.css.
+ */
+:root[data-theme="dark"] {
+  --bg: #0e1320; --panel: #151c2b; --panel-2: #1b2436; --line: #263147;
+  --fg: #e7ebf3; --muted: #8e98ad; --tally: #ff4d5e;
+  --s1: #5aa9ff; --s2: #ff8a5c; --s3: #b9a2ff; --s4: #4fd1a5;
+  --v-true: #3fbf7f; --v-false: #ef4f5a; --v-mis: #e6b03a; --v-imp: #9aa6bd; --v-none: #6f7a90;
+  --gold: #f4c542;
+  --accent-a: #5aa9ff; --accent-b: #b9a2ff; --on-accent: #0b1020;
+  --grain: .07; --glass: color-mix(in srgb, var(--bg) 70%, transparent);
+  --edge: color-mix(in srgb, #fff 7%, transparent);
+  --lift: 0 1px 0 var(--edge) inset, 0 1px 2px rgb(0 0 0 / .28), 0 10px 28px -12px rgb(0 0 0 / .55);
+  color-scheme: dark;
+}
+
+/* The app locks the viewport on wide screens (columns scroll on their own); this page is one scroller. */
+body { height: auto; overflow: visible; padding: 34px 40px 56px; }
+#root { display: block; height: auto; }
+
+.pv { display: block; max-width: 1100px; margin: 0 auto; padding: 0; }
+.pv-head { margin-bottom: 8px; }
+.pv-kicker { margin: 0 0 6px; font: 600 11px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--s1); }
+.pv-head h1 { margin: 0; font: 800 38px/0.98 var(--font-display); text-transform: uppercase; letter-spacing: .01em; }
+.pv-lede { margin: 10px 0 0; max-width: 78ch; color: var(--muted); font-size: 14px; }
+.pv code { font: 12px var(--font-mono); color: var(--muted); }
+
+.pv-row { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); }
+.pv-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pv-row-head h2 { margin: 0; font: 800 19px/1 var(--font-display); text-transform: uppercase; letter-spacing: .06em; }
+.pv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px; }
+.pv-cols--single { grid-template-columns: minmax(0, 1fr); }
+.pv-cell { min-width: 0; }
+.pv-label { margin: 0 0 7px; font: 600 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pv-cell--after .pv-label { color: var(--s1); }
+.pv-canvas { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-height: 104px; display: grid; gap: 10px; align-content: start; box-shadow: var(--lift); }
+.pv-canvas > * { min-width: 0; }
+.pv-stack { display: grid; gap: 10px; justify-items: start; width: 100%; }
+.pv-chips { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.pv-field { width: 100%; }
+.pv-foot { margin-top: 30px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; max-width: 92ch; }

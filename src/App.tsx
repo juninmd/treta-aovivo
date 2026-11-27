@@ -1,3 +1,4 @@
+import { Badge, Button, LiveBadge } from "@juninmd/sonido";
 import { useState } from "react";
 import { useArchive } from "./app/useArchive";
 import { useDebate } from "./app/useDebate";
@@ -51,10 +52,10 @@ export default function App() {
 
   return (
     <>
-      <header className={`bar ${d.running ? "live" : ""}`}>
+      <header className="bar">
         <div className="brand">
           <h1>Treta ao Vivo</h1>
-          <span className="onair"><i />{d.running ? "AO VIVO" : state.status === "ended" ? "ENCERRADO" : "PARADO"}</span>
+          <LiveBadge live={d.running} label="AO VIVO" offLabel={state.status === "ended" ? "ENCERRADO" : "PARADO"} />
         </div>
         <div className="source">
           <div className="seg" role="group" aria-label="Fonte de áudio">
@@ -70,24 +71,24 @@ export default function App() {
             </select>
           )}
           {d.running ? (
-            <button type="button" className="btn primary" onClick={() => void d.stop()}>Parar</button>
+            <Button size="sm" onClick={() => void d.stop()}>Parar</Button>
           ) : (
-            <button type="button" className="btn primary" onClick={() => void d.start()}>Iniciar</button>
+            <Button size="sm" onClick={() => void d.start()}>Iniciar</Button>
           )}
-          <button type="button" className="btn" disabled={!state.utterances.length} onClick={() => setMomentsOpen(true)}>Melhores momentos</button>
-          <button type="button" className="btn" onClick={() => setCfgOpen(true)}>Configurar</button>
+          <Button size="sm" appearance="outline" disabled={!state.utterances.length} onClick={() => setMomentsOpen(true)}>Melhores momentos</Button>
+          <Button size="sm" appearance="outline" onClick={() => setCfgOpen(true)}>Configurar</Button>
         </div>
         <span className="clock" aria-label="Tempo de sessão">{fmt(state.t)}</span>
         <div className="chips">
-          <span className="chip">LLM <b>{settings.llm.model || "escolha um modelo"}</b> · {PRESETS[settings.llm.preset].label}</span>
-          <span className="chip">transcrição <b>{settings.asr.model || "escolha um modelo"}</b> · {PRESETS[settings.asr.preset].label}</span>
-          <span className="chip">busca <b>{{ google: "Google", serper: "Google (Serper)", duckduckgo: "DuckDuckGo" }[settings.search.provider]}</b> + notícias</span>
-          <span className="chip">vozes <b>{state.speakers.length}</b>{state.pending ? ` · ${state.pending} tarefas` : ""}</span>
-          {archive.saved && <span className="chip" title={archive.saved.path}>salvo <b>{archive.saved.at.toLocaleTimeString("pt-BR")}</b></span>}
-          {archive.error && <span className="chip err" title={archive.error}>não salvou no arquivo</span>}
+          <Badge><span>LLM <b>{settings.llm.model || "escolha um modelo"}</b> · {PRESETS[settings.llm.preset].label}</span></Badge>
+          <Badge><span>transcrição <b>{settings.asr.model || "escolha um modelo"}</b> · {PRESETS[settings.asr.preset].label}</span></Badge>
+          <Badge><span>busca <b>{{ google: "Google", serper: "Google (Serper)", duckduckgo: "DuckDuckGo" }[settings.search.provider]}</b> + notícias</span></Badge>
+          <Badge><span>vozes <b>{state.speakers.length}</b>{state.pending ? ` · ${state.pending} tarefas` : ""}</span></Badge>
+          {archive.saved && <Badge tone="success" title={archive.saved.path}><span>salvo <b>{archive.saved.at.toLocaleTimeString("pt-BR")}</b></span></Badge>}
+          {archive.error && <Badge tone="danger" title={archive.error}><span>não salvou no arquivo</span></Badge>}
         </div>
         {needsTools && <p className="banner warn">Para links e arquivos, instale {!d.tools?.ffmpeg ? "ffmpeg" : ""}{!d.tools?.ffmpeg && !d.tools?.ytDlp ? " e " : ""}{!d.tools?.ytDlp ? "yt-dlp" : ""} e deixe no PATH.</p>}
-        {d.problem && <p className="banner err" role="alert">{d.problem} <button type="button" className="link" onClick={() => d.setProblem(null)}>fechar</button></p>}
+        {d.problem && <p className="banner err" role="alert">{d.problem} <Button variant="link" onClick={() => d.setProblem(null)}>fechar</Button></p>}
         {state.errors.length > 0 && <p className="banner err" role="status">{state.errors.at(-1)} ({state.errors.length} avisos)</p>}
         {state.messages.length > 0 && d.running && <p className="banner">{state.messages.at(-1)}</p>}
       </header>

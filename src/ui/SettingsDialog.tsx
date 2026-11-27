@@ -1,3 +1,4 @@
+import { Button, Checkbox } from "@juninmd/sonido";
 import { useEffect, useRef, useState } from "react";
 import type { Settings } from "../app/settings";
 
@@ -69,15 +70,19 @@ export function SettingsDialog({ open, settings, onClose, onSave }: { open: bool
             Máx. falantes
             <input id="voice-max" type="number" min="2" max="8" value={draft.voice.maxSpeakers} onChange={(e) => set("voice", { ...draft.voice, maxSpeakers: Math.min(8, Math.max(2, Number(e.target.value) || 2)) })} />
           </label>
-          <label className="check-row wide">
-            <input id="voice-faces" type="checkbox" checked={draft.voice.captureFaces} onChange={(e) => set("voice", { ...draft.voice, captureFaces: e.target.checked })} />
-            Capturar fotos de quem fala a partir do vídeo (link ou arquivo)
-          </label>
+          <div className="wide">
+            <Checkbox
+              id="voice-faces"
+              checked={draft.voice.captureFaces}
+              onChange={(captureFaces) => set("voice", { ...draft.voice, captureFaces })}
+              label="Capturar fotos de quem fala a partir do vídeo (link ou arquivo)"
+            />
+          </div>
           <p className="hint">Participantes ajudam a dar nome às vozes (o nome só é usado com pista na fala). Limiar maior separa mais vozes; menor junta vozes parecidas.</p>
         </fieldset>
         <div className="actions">
-          <button type="button" className="btn" onClick={onClose}>Cancelar</button>
-          <button type="submit" className="btn primary">Salvar</button>
+          <Button size="sm" appearance="outline" onClick={onClose}>Cancelar</Button>
+          <Button size="sm" type="submit">Salvar</Button>
         </div>
       </form>
     </dialog>

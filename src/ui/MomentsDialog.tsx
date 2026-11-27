@@ -1,3 +1,4 @@
+import { Button } from "@juninmd/sonido";
 import type { LanguageModel } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { rankMoments, summarizeDebate, type SessionSummary } from "../core/highlights";
@@ -60,12 +61,12 @@ export function MomentsDialog({ open, state, llm, onClose }: { open: boolean; st
                   <q>{m.quote}</q>
                   <small>{names[m.speaker]} · {fmt(m.at)} — {m.why}</small>
                 </div>
-                <button type="button" className="btn" disabled={!clips.length} onClick={() => playClips(clips)}>Ouvir</button>
+                <Button size="xs" appearance="outline" disabled={!clips.length} onClick={() => playClips(clips)}>Ouvir</Button>
               </li>
             );
           })}
         </ol>
-        <div className="actions"><button type="submit" className="btn">Fechar</button></div>
+        <div className="actions"><Button size="sm" appearance="outline" type="submit">Fechar</Button></div>
       </form>
     </dialog>
   );

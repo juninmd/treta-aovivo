@@ -55,7 +55,7 @@ async function features(page: Page) {
   await feed.screenshot({ path: `${SHOTS}/review.png` });
   await page.keyboard.press("Escape");
 
-  const lie = page.locator("article.check", { has: page.locator(".stamp[data-v='falso']") });
+  const lie = page.locator("article.check", { has: page.locator(".sn-stamp[data-tone='false']") });
   await lie.scrollIntoViewIfNeeded();
   await page.locator("aside").screenshot({ path: `${SHOTS}/checks.png` });
 
